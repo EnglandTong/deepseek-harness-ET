@@ -162,11 +162,11 @@ describe('LocalSnapshotService', () => {
     await toolWrite(join(workRoot, 'a.txt'), 'once\n')
     await toolWrite(join(workRoot, 'a.txt'), 'twice\n')
     const infos = await ctx.snapshots.list(agent)
-    expect(infos[0].entryCount).toBe(1)
+    expect(infos[0]?.entryCount).toBe(1)
 
     // Restore returns to the snapshot-time state, not the intermediate write.
     await mountGrantingApproval()
-    await ctx.snapshots.restore(agent, infos[0].id)
+    await ctx.snapshots.restore(agent, infos[0]!.id)
     expect(await readTarget(join(workRoot, 'a.txt'))).toBe('alpha\n')
   })
 
@@ -251,7 +251,7 @@ describe('LocalSnapshotService', () => {
     const intent = await ctx.waterfall('fs/write-intent', target, undefined, () => undefined)
     await ctx.fs.writeText(target, 'actorless\n', intent)
     const infos = await ctx.snapshots.list(agent)
-    expect(infos[0].entryCount).toBe(0)
+    expect(infos[0]?.entryCount).toBe(0)
   })
 
   it('coexists with the observation policy: guarded writes still succeed', async () => {
@@ -265,7 +265,7 @@ describe('LocalSnapshotService', () => {
     await ctx.fs.editText(target, { oldString: 'first', newString: 'second', replaceAll: false }, guard)
     expect(await readTarget(join(workRoot, 'a.txt'))).toBe('second\n')
     const infos = await ctx.snapshots.list(agent)
-    expect(infos[0].entryCount).toBe(1)
+    expect(infos[0]?.entryCount).toBe(1)
   })
 })
 
@@ -277,7 +277,7 @@ async function mountGrantingApproval(): Promise<void> {
       return 'allowed-once'
     }
   }
-  await ctx.plugin(GrantingApproval as never)
+  await ctx.plugin(GrantingApproval, { policy: 'ask' })
 }
 
 /** Compose a stub approval service that rejects every request. */
@@ -288,5 +288,5 @@ async function mountRejectingApproval(): Promise<void> {
       return 'rejected'
     }
   }
-  await ctx.plugin(RejectingApproval as never)
+  await ctx.plugin(RejectingApproval, { policy: 'ask' })
 }

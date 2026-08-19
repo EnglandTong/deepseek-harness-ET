@@ -1,76 +1,79 @@
 /** Tests for the snapshot invariant companion: event-data validation on replay and dispatch. */
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
+import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
+import InvariantRegistry, { InvariantError } from '@deepseek-ai/dsh-invariants'
+import * as SnapshotInvariant from '@deepseek-ai/dsh-snapshot/invariant'
 
-const register = vi.fn()
-vi.mock('@deepseek-ai/cordis', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@deepseek-ai/cordis')>()
-  return {
-    ...original,
-    Context: class extends original.Context {
-      invariants = { register }
-    },
-  }
-})
+async function setup(): Promise<Context> {
+  const ctx = new Context()
+  await ctx.plugin(SessionStore)
+  await ctx.plugin(InvariantRegistry, { enabled: true })
+  await ctx.plugin(SnapshotInvariant)
+  return ctx
+}
 
-import { apply, inject, name } from '@deepseek-ai/dsh-snapshot/invariant'
-
-type Listener = (mode: unknown, eventName: string, args: unknown) => void
-
-function fakeSession(events: SessionEvent[]): Session {
-  return { events } as unknown as Session
+function invariantError(message: string): Partial<InvariantError> {
+  return expect.objectContaining({ code: 'INVARIANT', packageName: '@deepseek-ai/dsh-snapshot', message: expect.stringMatching(message) })
 }
 
 describe('snapshot invariant companion', () => {
   it('registers under the package name and requires the invariants service', () => {
-    expect(name).toBe('snapshot-invariant')
-    expect(inject).toEqual(['invariants'])
+    expect(SnapshotInvariant.name).toBe('snapshot-invariant')
+    expect(SnapshotInvariant.inject).toEqual(['invariants'])
   })
 
-  it('validates loaded snapshot events at install', async () => {
-    let installer: ((ctx: unknown, fail: (m: string) => never) => void) | undefined
-    register.mockImplementationOnce((_pkg: string, install: (ctx: unknown, fail: (m: string) => never) => void) => {
-      installer = install
-      return () => {}
-    })
-    await apply(new Context())
-    expect(installer).toBeDefined()
-
-    const bad = fakeSession([{ type: 'snapshot/create', seq: 0, time: 0, data: { id: '', reason: 'r' } }])
-    const fakeCtx = { sessions: { list: () => [bad] }, on: () => {} }
-    expect(() => installer!(fakeCtx, (m: string) => { throw new Error(m) })).toThrow('snapshot event id')
-
-    const good = fakeSession([{ type: 'snapshot/create', seq: 0, time: 0, data: { id: 's1', reason: 'r' } }])
-    const goodCtx = { sessions: { list: () => [good] }, on: () => {} }
-    expect(() => installer!(goodCtx, (m: string) => { throw new Error(m) })).not.toThrow()
+  it('rejects a malformed snapshot create before committing it', async () => {
+    const ctx = await setup()
+    const session = ctx.sessions.create(SessionId('snapshot-invariant-invalid'))
+    expect(() => {
+      session.append('snapshot/create', { id: '', reason: 'r' })
+    }).toThrow(invariantError('snapshot event id'))
+    expect(() => {
+      session.append('snapshot/create', { id: 's1', reason: 5 } as never)
+    }).toThrow(invariantError('reason must be a string'))
   })
 
-  it('rejects malformed create and restore payloads, accepts well-formed ones', async () => {
-    const dispatchListener = vi.fn()
-    register.mockImplementationOnce((_pkg: string, installer: (ctx: never, fail: (m: string) => never) => void) => {
-      const ctx = {
-        sessions: { list: () => [] },
-        on: (_event: string, listener: Listener) => { dispatchListener.mockImplementation(listener) },
-      }
-      installer(ctx as never, (message: string) => { throw new Error(message) })
-      return () => {}
-    })
-    await apply(new Context())
+  it('rejects malformed restore payloads and accepts well-formed events', async () => {
+    const ctx = await setup()
+    const session = ctx.sessions.create(SessionId('snapshot-invariant-malformed'))
+    expect(() => {
+      session.append('snapshot/restore', { id: 's1', restored: -1, removed: 0 })
+    }).toThrow(invariantError('restored must be a non-negative safe integer'))
+    expect(() => {
+      session.append('snapshot/restore', { id: 's1', restored: 1.5, removed: 0 })
+    }).toThrow(invariantError('restored must be a non-negative safe integer'))
+    expect(() => {
+      session.append('snapshot/restore', { id: 's1', restored: 2, removed: -1 })
+    }).toThrow(invariantError('removed must be a non-negative safe integer'))
 
-    const session = fakeSession([])
-    const dispatch = (event: SessionEvent) => dispatchListener('emit', 'session/event', [session, event])
+    session.append('snapshot/create', { id: 's1', reason: 'before refactor' })
+    expect(() => {
+      session.append('snapshot/restore', { id: 's1', restored: 3, removed: 1 })
+    }).not.toThrow()
+  })
 
-    expect(() => dispatch({ type: 'snapshot/create', seq: 0, time: 0, data: { reason: 'r' } as never })).toThrow('snapshot event id')
-    expect(() => dispatch({ type: 'snapshot/create', seq: 0, time: 0, data: { id: 's1', reason: 5 } as never })).toThrow('reason')
-    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: -1, removed: 0 } as never })).toThrow('restored')
-    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: 1.5, removed: 0 } as never })).toThrow('restored')
-    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: 2, removed: 'x' } as never })).toThrow('removed')
+  it('reconstructs an existing durable snapshot log before checking later events', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    const session = ctx.sessions.create(SessionId('snapshot-invariant-late-load'))
+    session.append('snapshot/create', { id: 's1', reason: 'before load' })
 
-    expect(() => dispatch({ type: 'snapshot/create', seq: 0, time: 0, data: { id: 's1', reason: 'before refactor' } })).not.toThrow()
-    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: 3, removed: 1 } })).not.toThrow()
+    await ctx.plugin(InvariantRegistry, { enabled: true })
+    await ctx.plugin(SnapshotInvariant)
+    expect(() => {
+      session.append('snapshot/restore', { id: 's1', restored: 1, removed: 0 })
+    }).not.toThrow()
+    expect(() => {
+      session.append('snapshot/restore', { id: '', restored: 1, removed: 0 })
+    }).toThrow(invariantError('snapshot event id'))
+  })
 
-    // Unrelated events pass through untouched.
-    expect(() => dispatch({ type: 'todo/write', data: { todos: [] } } as never)).not.toThrow()
+  it('passes unrelated events through untouched', async () => {
+    const ctx = await setup()
+    const session = ctx.sessions.create(SessionId('snapshot-invariant-unrelated'))
+    expect(() => {
+      session.append('todo/write', { todos: [] } as never)
+    }).not.toThrow()
   })
 })
