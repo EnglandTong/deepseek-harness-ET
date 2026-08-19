@@ -27,7 +27,7 @@ async function readThrough(path: string): Promise<string> {
   const target = await ctx.fs.resolve(path)
   const info = await ctx.fs.stat(target)
   const content = await ctx.fs.readText(target)
-  ctx.emit('fs/observed', target, { kind: 'present', version: info?.version }, { agent })
+  ctx.emit('fs/observed', target, info === undefined ? { kind: 'absent' } : { kind: 'present', version: info.version }, { agent })
   return content
 }
 
@@ -50,7 +50,7 @@ beforeEach(async () => {
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(LocalFileSystem, { cwd: workRoot })
   await ctx.plugin(FsPolicy)
-  await ctx.plugin(LocalSnapshotService, { rootDir: snapRoot })
+  await ctx.plugin(LocalSnapshotService, { rootDir: snapRoot, retention: 20, maxFileBytes: 4 * 1024 * 1024, diffMaxLines: 2_000 })
   await ctx.plugin(ToolMultiedit)
   session = Session.create(SessionId('multiedit-test'))
   agent = { session } as unknown as Agent

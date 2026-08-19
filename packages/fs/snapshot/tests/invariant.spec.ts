@@ -37,11 +37,11 @@ describe('snapshot invariant companion', () => {
     await apply(new Context())
     expect(installer).toBeDefined()
 
-    const bad = fakeSession([{ type: 'snapshot/create', data: { id: '', reason: 'r' } }])
+    const bad = fakeSession([{ type: 'snapshot/create', seq: 0, time: 0, data: { id: '', reason: 'r' } }])
     const fakeCtx = { sessions: { list: () => [bad] }, on: () => {} }
     expect(() => installer!(fakeCtx, (m: string) => { throw new Error(m) })).toThrow('snapshot event id')
 
-    const good = fakeSession([{ type: 'snapshot/create', data: { id: 's1', reason: 'r' } }])
+    const good = fakeSession([{ type: 'snapshot/create', seq: 0, time: 0, data: { id: 's1', reason: 'r' } }])
     const goodCtx = { sessions: { list: () => [good] }, on: () => {} }
     expect(() => installer!(goodCtx, (m: string) => { throw new Error(m) })).not.toThrow()
   })
@@ -61,14 +61,14 @@ describe('snapshot invariant companion', () => {
     const session = fakeSession([])
     const dispatch = (event: SessionEvent) => dispatchListener('emit', 'session/event', [session, event])
 
-    expect(() => dispatch({ type: 'snapshot/create', data: { reason: 'r' } as never })).toThrow('snapshot event id')
-    expect(() => dispatch({ type: 'snapshot/create', data: { id: 's1', reason: 5 } as never })).toThrow('reason')
-    expect(() => dispatch({ type: 'snapshot/restore', data: { id: 's1', restored: -1, removed: 0 } as never })).toThrow('restored')
-    expect(() => dispatch({ type: 'snapshot/restore', data: { id: 's1', restored: 1.5, removed: 0 } as never })).toThrow('restored')
-    expect(() => dispatch({ type: 'snapshot/restore', data: { id: 's1', restored: 2, removed: 'x' } as never })).toThrow('removed')
+    expect(() => dispatch({ type: 'snapshot/create', seq: 0, time: 0, data: { reason: 'r' } as never })).toThrow('snapshot event id')
+    expect(() => dispatch({ type: 'snapshot/create', seq: 0, time: 0, data: { id: 's1', reason: 5 } as never })).toThrow('reason')
+    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: -1, removed: 0 } as never })).toThrow('restored')
+    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: 1.5, removed: 0 } as never })).toThrow('restored')
+    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: 2, removed: 'x' } as never })).toThrow('removed')
 
-    expect(() => dispatch({ type: 'snapshot/create', data: { id: 's1', reason: 'before refactor' } })).not.toThrow()
-    expect(() => dispatch({ type: 'snapshot/restore', data: { id: 's1', restored: 3, removed: 1 } })).not.toThrow()
+    expect(() => dispatch({ type: 'snapshot/create', seq: 0, time: 0, data: { id: 's1', reason: 'before refactor' } })).not.toThrow()
+    expect(() => dispatch({ type: 'snapshot/restore', seq: 0, time: 0, data: { id: 's1', restored: 3, removed: 1 } })).not.toThrow()
 
     // Unrelated events pass through untouched.
     expect(() => dispatch({ type: 'todo/write', data: { todos: [] } } as never)).not.toThrow()
