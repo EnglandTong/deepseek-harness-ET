@@ -452,6 +452,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'tool-fs executes read/write/edit through ctx.fs; fs-sandbox fences mutations by the shared sandbox mode; fs-observation-policy contributes observed-state checks through the fs/* event gate.',
   },
   {
+    key: 'snapshots',
+    pkg: 'snapshot',
+    title: 'Workspace-snapshot provider seam',
+    mode: 'seam',
+    implementations: ['snapshot-local'],
+    consumers: ['tool-snapshot', 'tool-multiedit'],
+    note: 'snapshot-local lazily captures pre-change content through the fs intent waterfalls into content-addressed blobs; tool-snapshot projects create/list/restore/diff and tool-multiedit adds the atomic multi-file edit whose failure restores its own rollback-point snapshot (restore re-enters the fs write path, so sandbox and observation policy participate as for tool writes).',
+  },
+  {
     key: 'compaction',
     pkg: 'compaction',
     title: 'Compaction seam',

@@ -1,0 +1,16 @@
+# The snapshot sequence's own needs: destructive snapshot_restore must not block
+# on an interactive approval channel, so the overlay pairs the danger preset
+# (sandbox danger-full-access + approval never) the base permission presets
+# define; telemetry stays out of the smoke. The workspace root stays the
+# isolated process cwd.
+- id: sandbox-policy
+  config:
+    mode: danger-full-access
+    workspaceRoot: !!js process.cwd()
+
+- id: approval
+  config:
+    policy: never
+
+- id: session-telemetry-otel
+  disabled: true

@@ -48,6 +48,9 @@ import * as ToolCordis from '@deepseek-ai/dsh-tool-cordis'
 import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import * as ToolFsSearch from '@deepseek-ai/dsh-tool-fs-search'
 import * as ToolStrReplaceEditor from '@deepseek-ai/dsh-tool-str-replace-editor'
+import LocalSnapshotService from '@deepseek-ai/dsh-snapshot-local'
+import * as ToolSnapshot from '@deepseek-ai/dsh-tool-snapshot'
+import * as ToolMultiedit from '@deepseek-ai/dsh-tool-multiedit'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
 import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
@@ -327,6 +330,36 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-snapshot',
+    dir: 'tool-snapshot',
+    source: 'packages/fs/tool-snapshot/src/index.ts',
+    requires: ['ctx.tools', 'ctx.snapshots', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'snapshot/create and snapshot/restore session events via the provider', 'tool/result'],
+    async mount(ctx) {
+      // The snapshot provider injects `fs` (capture rides the intent
+      // waterfalls), so the harvest mounts the bare filesystem backend.
+      await ctx.plugin(LocalFileSystem)
+      await ctx.plugin(LocalSnapshotService)
+      await ctx.plugin(ToolSnapshot)
+    },
+    note:
+      'snapshot_create/list/restore/diff over the workspace-snapshot seam. Restore is destructive-change-guarded by the provider (approval seam); the diff card rides presentationMeta replayed from the canonical value.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-multiedit',
+    dir: 'tool-multiedit',
+    source: 'packages/fs/tool-multiedit/src/index.ts',
+    requires: ['ctx.tools', 'ctx.fs', 'ctx.snapshots', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'fs/edit-intent for each file', 'fs/observed after each applied edit', 'snapshot/create and snapshot/restore session events for the rollback point', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalFileSystem)
+      await ctx.plugin(LocalSnapshotService)
+      await ctx.plugin(ToolMultiedit)
+    },
+    note:
+      'One atomic multi-file literal edit: either every edit applies or the workspace rolls back to the pre-edit snapshot captured within the same tool call (rollback: true skips the approval gate). Per-file semantics reuse the single-file edit tool; the result renders as one multi-file diff card.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-terminal',

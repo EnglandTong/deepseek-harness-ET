@@ -13,6 +13,10 @@
 | `fs-observation-policy/` | 政策门禁插件：通过 `fs/*` 事件门禁提供已观察状态、编辑前读取和版本防护的写入/编辑 | （无服务，仅有 `fs/*` 监听器） |
 | `tool-fs/` | 面向模型的 `read`/`write`/`edit` 工具以及执行器（通过 `ctx.fs` 读取，拥有读取窗口逻辑，分派 `fs/*`）；为会话 cwd 相对路径保留文件系统语义，并在已挂载的 `ctx.fs` 实施约束时声明沙箱升级字段 | （注册到 `ctx.tools`） |
 | `tool-fs-search/` | 面向模型的 `glob`/`grep` 发现工具，由经 `ctx.subprocess` spawn 的打包 `@vscode/ripgrep` 二进制文件支持，而不是使用 `ctx.fs` 提供方方法 | （注册到 `ctx.tools`） |
+| `snapshot/` | Service Definition：工作区快照的身份、create/list/restore/diff 契约，以及 `snapshot/create` + `snapshot/restore` 会话事件 | `ctx.snapshots` |
+| `snapshot-local/` | 本地快照提供方：经 `fs/write-intent`/`fs/edit-intent` 瀑布懒捕获变更前内容到内容寻址 blob；恢复重入 fs 写路径（沙箱与观察政策均参与），破坏性恢复需经审批 | （注册 `ctx.snapshots`） |
+| `tool-snapshot/` | 面向模型的 `snapshot_create`/`snapshot_list`/`snapshot_restore`/`snapshot_diff` 工具；restore/diff 渲染为多文件 diff 卡片 | （注册到 `ctx.tools`） |
+| `tool-multiedit/` | 面向模型的原子 `multi_edit` 工具：多文件字面量编辑，失败时恢复本调用自己的回滚点快照（`rollback: true`） | （注册到 `ctx.tools`） |
 
 Service Definition 位于 `fs/fs/`。沙箱化、远程或限定项目作用域的文件系统后端可以替换 `fs-local`，而无需更改 Service Definition、政策门禁或面向模型的工具 schema：`fs-sandbox` 基于共享沙箱模式提供进程内路径围栏（[决策](../../.agents/notes/implemented/feature/2026-07-14-cross-family-fs-sandbox.md)），而 `fs-e2b` 则把文件状态置于与 E2B 子进程提供方共享的远程执行世界中（[决策](../../.agents/notes/implemented/architecture/2026-07-28-portable-execution-world-consumers.md)）。政策（`fs-observation-policy/`）是一个只通过 `fs/*` 事件门禁参与的插件，不是工具注入的服务；因此移除它会平稳失去政策，留下不受约束的裸提供方，而不会破坏工具。加载 `tool-fs/` 的部署也应加载该插件。模式围栏与编辑前读取门禁彼此正交，可以组合。发现（`tool-fs-search/`）有意不扩展提供方约定：搜索是由进程支持的 `rg` 工作流（经 `ctx.subprocess` spawn 的打包 `@vscode/ripgrep` 二进制文件），因此文件系统后端无需承担通用搜索约定；其工具会无条件注册。如果搜索工作目录与 `read` 根目录是同一工作区，结果就能继续读取，这也是其 README 所述的共置部署。
 
