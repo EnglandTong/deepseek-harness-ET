@@ -80,6 +80,12 @@ flowchart LR
   cfg --> plugin_dsh_base_tool_fs
   plugin_dsh_base_tool_fs_search["tool-fs-search<br/>@deepseek-ai/dsh-tool-fs-search"]
   cfg --> plugin_dsh_base_tool_fs_search
+  plugin_dsh_base_snapshot_local["snapshot-local<br/>@deepseek-ai/dsh-snapshot-local"]
+  cfg --> plugin_dsh_base_snapshot_local
+  plugin_dsh_base_tool_snapshot["tool-snapshot<br/>@deepseek-ai/dsh-tool-snapshot"]
+  cfg --> plugin_dsh_base_tool_snapshot
+  plugin_dsh_base_tool_multiedit["tool-multiedit<br/>@deepseek-ai/dsh-tool-multiedit"]
+  cfg --> plugin_dsh_base_tool_multiedit
   plugin_dsh_base_agent_instructions["agent-instructions<br/>@deepseek-ai/dsh-agent-instructions"]
   cfg --> plugin_dsh_base_agent_instructions
   plugin_dsh_base_skill["skill<br/>@deepseek-ai/dsh-skill"]
@@ -204,6 +210,9 @@ flowchart LR
 | `fs-observation-policy` | `@deepseek-ai/dsh-fs-observation-policy` |
 | `tool-fs` | `@deepseek-ai/dsh-tool-fs` |
 | `tool-fs-search` | `@deepseek-ai/dsh-tool-fs-search` |
+| `snapshot-local` | `@deepseek-ai/dsh-snapshot-local` |
+| `tool-snapshot` | `@deepseek-ai/dsh-tool-snapshot` |
+| `tool-multiedit` | `@deepseek-ai/dsh-tool-multiedit` |
 | `agent-instructions` | `@deepseek-ai/dsh-agent-instructions` |
 | `skill` | `@deepseek-ai/dsh-skill` |
 | `skill-filesystem` | `@deepseek-ai/dsh-skill-filesystem` |

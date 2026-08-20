@@ -229,6 +229,20 @@
       config:
         sampleOverCapGlobResults: false
 
+    # Workspace snapshots over the fs intent waterfalls: the local provider
+    # lazily captures pre-change content into content-addressed blobs, and the
+    # two tool rows project create/list/restore/diff plus the atomic multi-file
+    # edit onto the model surface. restore re-enters the fs write path, so
+    # sandbox fencing and the observation policy participate as for tool writes.
+    - id: snapshot-local
+      name: '@deepseek-ai/dsh-snapshot-local'
+
+    - id: tool-snapshot
+      name: '@deepseek-ai/dsh-tool-snapshot'
+
+    - id: tool-multiedit
+      name: '@deepseek-ai/dsh-tool-multiedit'
+
     - id: agent-instructions
       name: '@deepseek-ai/dsh-agent-instructions'
       config:
