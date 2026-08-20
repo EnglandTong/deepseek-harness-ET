@@ -102,6 +102,28 @@ export interface Config {
 
 Source: [`packages/core/agent-default-model/src/index.ts:41`](../packages/core/agent-default-model/src/index.ts)
 
+<a id="deepseek-aidsh-agent-governance"></a>
+
+## `@deepseek-ai/dsh-agent-governance`
+
+Requires: `skills` · `tools` · `subagents` · `systemPrompt`
+
+```ts config-catalog
+/** Configuration for the bundled governance skill provider. */
+export interface Config {
+  /** Override the bundled skill directory, primarily for tests and packaging. */
+  bundledSkillDir?: string
+  /** Provider name registered in the shared skill registry. */
+  providerName?: string
+  /** Include project and user skills alongside the bundled skills. */
+  includeDefaultRoots?: boolean
+  /** Watch local skill roots for changes. */
+  watch?: boolean
+}
+```
+
+Source: [`packages/skill/agent-governance/src/index.ts:25`](../packages/skill/agent-governance/src/index.ts)
+
 <a id="deepseek-aidsh-agent-instructions"></a>
 
 ## `@deepseek-ai/dsh-agent-instructions`
@@ -1234,6 +1256,11 @@ export interface StdioConfig {
   cwd: string
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /**
+   * Timeout in milliseconds for the initial connection handshake (initialize)
+   * and each paginated `tools/list` discovery request (default 60000).
+   */
+  startupTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -1256,6 +1283,11 @@ export interface StreamableHttpConfig {
   headers: Record<string, string>
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /**
+   * Timeout in milliseconds for the initial connection handshake (initialize)
+   * and each paginated `tools/list` discovery request (default 60000).
+   */
+  startupTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
@@ -1275,7 +1307,7 @@ export interface ReconnectConfig {
 }
 ```
 
-Source: [`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
+Source: [`packages/mcp/mcp-client/src/index.ts:108`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="deepseek-aidsh-message-feedback"></a>
 
@@ -1898,6 +1930,28 @@ export interface Config {
 ```
 
 Source: [`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
+
+<a id="deepseek-aidsh-snapshot-local"></a>
+
+## `@deepseek-ai/dsh-snapshot-local`
+
+Requires: `fs`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** Snapshots root; defaults to `dshHomePath('snapshots')`. */
+  rootDir?: string
+  /** Maximum snapshots kept per session; oldest are dropped on create. */
+  retention: number
+  /** Per-file capture cap in bytes; larger files record as unmanaged. */
+  maxFileBytes: number
+  /** Line budget across one diff result before truncation. */
+  diffMaxLines: number
+}
+```
+
+Source: [`packages/fs/snapshot-local/src/index.ts:58`](../packages/fs/snapshot-local/src/index.ts)
 
 <a id="deepseek-aidsh-spill-local"></a>
 
@@ -3026,6 +3080,7 @@ Source: [`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
 
 - `@deepseek-ai/dsh-agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
+- `@deepseek-ai/dsh-agent-governance-bundle` ([`packages/bundle/agent-governance/src/index.ts`](../packages/bundle/agent-governance/src/index.ts))
 - `@deepseek-ai/dsh-api-gateway` — requires `typert` ([`packages/api/gateway/src/index.ts`](../packages/api/gateway/src/index.ts))
 - `@deepseek-ai/dsh-api-remotes` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
 - `@deepseek-ai/dsh-client-locale` ([`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts))
@@ -3087,6 +3142,8 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-tool-ask-user` — requires `tools` · `userQuestions` ([`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts))
 - `@deepseek-ai/dsh-tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
 - `@deepseek-ai/dsh-tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
+- `@deepseek-ai/dsh-tool-multiedit` — requires `tools` · `fs` · `snapshots` · `systemPrompt` ([`packages/fs/tool-multiedit/src/index.ts`](../packages/fs/tool-multiedit/src/index.ts))
+- `@deepseek-ai/dsh-tool-snapshot` — requires `tools` · `snapshots` · `systemPrompt` ([`packages/fs/tool-snapshot/src/index.ts`](../packages/fs/tool-snapshot/src/index.ts))
 - `@deepseek-ai/dsh-tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@deepseek-ai/dsh-user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@deepseek-ai/dsh-workspace` — requires `storageDomain` · `sessionPersistence` ([`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts))
@@ -3107,6 +3164,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@deepseek-ai/dsh-session-query` — abstract `SessionQueryEngine` ([`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts))
 - `@deepseek-ai/dsh-settings` — abstract `SettingsProvider` ([`packages/settings/settings/src/index.ts`](../packages/settings/settings/src/index.ts))
 - `@deepseek-ai/dsh-shell` — abstract `ShellExecutor` ([`packages/shell/shell/src/index.ts`](../packages/shell/shell/src/index.ts))
+- `@deepseek-ai/dsh-snapshot` — abstract `SnapshotService` ([`packages/fs/snapshot/src/index.ts`](../packages/fs/snapshot/src/index.ts))
 - `@deepseek-ai/dsh-spill` — abstract `SpillStore` ([`packages/spill/spill/src/index.ts`](../packages/spill/spill/src/index.ts))
 - `@deepseek-ai/dsh-subprocess` — abstract `SubprocessRuntime` ([`packages/subprocess/subprocess/src/index.ts`](../packages/subprocess/subprocess/src/index.ts))
 - `@deepseek-ai/dsh-workflow` — abstract `WorkflowEngine` ([`packages/workflow/workflow/src/index.ts`](../packages/workflow/workflow/src/index.ts))

@@ -986,6 +986,9 @@ importers:
       '@deepseek-ai/dsh-agent-governance':
         specifier: workspace:^
         version: link:../../skill/agent-governance
+      '@deepseek-ai/dsh-subagent-dsh-sdk':
+        specifier: workspace:^
+        version: link:../../subagent/subagent-dsh-sdk
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -6844,6 +6847,9 @@ importers:
 
   packages/skill/agent-governance:
     dependencies:
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -6854,12 +6860,21 @@ importers:
       '@deepseek-ai/dsh-invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@deepseek-ai/dsh-skill':
         specifier: workspace:^
         version: link:../skill
       '@deepseek-ai/dsh-skill-filesystem':
         specifier: workspace:^
         version: link:../skill-filesystem
+      '@deepseek-ai/dsh-subagent':
+        specifier: workspace:^
+        version: link:../../subagent/subagent
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
 
   packages/skill/skill:
     dependencies:

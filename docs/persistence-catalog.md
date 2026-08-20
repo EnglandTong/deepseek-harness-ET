@@ -420,6 +420,74 @@ Source: [`packages/feedback/command-feedback/src/index.ts:62`](../packages/feedb
 
 Source: [`packages/goal/goal/src/domain.ts:66`](../packages/goal/goal/src/domain.ts)
 
+### `governance/*`
+
+<a id="governanceaccept--log-only"></a>
+
+#### `governance/accept` — log-only
+
+```ts persistence-catalog
+/** Records the independent acceptance decision after a report. */
+'governance/accept': { taskId: string; decision: GovernanceAcceptance; reason?: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:70`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancedecision--log-only"></a>
+
+#### `governance/decision` — log-only
+
+```ts persistence-catalog
+/** Records the provider decision for a recommendation. */
+'governance/decision': { taskId: string; decision: GovernanceDecision; reason?: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:64`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancedelegate--log-only"></a>
+
+#### `governance/delegate` — log-only
+
+```ts persistence-catalog
+/** Records the provider selected for an approved delegation. */
+'governance/delegate': { taskId: string; harness: HarnessId; provider: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:66`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governanceharness--log-only"></a>
+
+#### `governance/harness` — log-only
+
+```ts persistence-catalog
+/** Records a deterministic recommendation for a bounded task. */
+'governance/harness': { harness: HarnessDescriptor }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:60`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancereport--log-only"></a>
+
+#### `governance/report` — log-only
+
+```ts persistence-catalog
+/** Records child completion status and evidence references. */
+'governance/report': GovernanceReport
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:68`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governanceroute--log-only"></a>
+
+#### `governance/route` — log-only
+
+```ts persistence-catalog
+/** Records human approval or rejection of a recommendation. */
+'governance/route': RouteRecommendation & { taskId: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:62`](../packages/skill/agent-governance/src/types.ts)
+
 ### `hook/*`
 
 <a id="hookinvoked--log-only"></a>
@@ -662,6 +730,45 @@ Source: [`packages/session/session-title/src/index.ts:100`](../packages/session/
 Types: [SessionTitleLlmRequestEventData](subsystems/session-title.md)
 
 Source: [`packages/session/session-title-llm/src/index.ts:43`](../packages/session/session-title-llm/src/index.ts)
+
+### `snapshot/*`
+
+<a id="snapshotcreate--log-only"></a>
+
+#### `snapshot/create` — log-only
+
+```ts persistence-catalog
+/**
+ * A workspace snapshot was created for this session. Log-only,
+ * non-surface, whole-value event: replay folds the set of known snapshot
+ * ids from the log alone. The honest capture boundary (unmanaged paths)
+ * is runtime state, not a creation-time fact, so it lives on
+ * `SnapshotInfo.partial` instead of this event.
+ * @param id - the provider-assigned snapshot identity (opaque string).
+ * @param reason - the creator-supplied free-form reason.
+ */
+'snapshot/create': { id: string; reason: string }
+```
+
+Source: [`packages/fs/snapshot/src/index.ts:48`](../packages/fs/snapshot/src/index.ts)
+
+<a id="snapshotrestore--log-only"></a>
+
+#### `snapshot/restore` — log-only
+
+```ts persistence-catalog
+/**
+ * The workspace was restored to snapshot `id`. Log-only, non-surface,
+ * whole-value event: the model can reconstruct "the workspace returned to
+ * snapshot N" from the log without live provider state.
+ * @param id - the restored snapshot's identity (opaque string).
+ * @param restored - how many paths were rewritten from captured blobs.
+ * @param removed - how many paths were deleted because the snapshot lacked them.
+ */
+'snapshot/restore': { id: string; restored: number; removed: number }
+```
+
+Source: [`packages/fs/snapshot/src/index.ts:57`](../packages/fs/snapshot/src/index.ts)
 
 ### `step/*`
 
