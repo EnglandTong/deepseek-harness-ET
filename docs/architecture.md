@@ -127,3 +127,5 @@ New behavior attaches to a documented extension point. Changing the loop itself 
 | Scope a registration to one agent | use that agent's `agent.ctx` |
 
 The [extension cookbook](cookbook/extension-cookbook.md) maps features to capabilities and indexes the step-by-step guides for [packages](cookbook/adding-a-package.md), [tools](cookbook/adding-a-tool.md), [LLM adapters](cookbook/adding-an-llm-adapter.md), [Chat nodes](cookbook/adding-a-conversation-node.md), and [settings cards](cookbook/adding-a-settings-card.md).
+
+The optional `apps/launcher` host publishes `dsh-launcher.exe`. It discovers Profile directories, lets the user choose a Profile and workspace, and starts the existing `dsh --profile <name>` process. The launcher does not compose Plugins or duplicate the Runtime; Profile Bundles remain the owner of Desktop, Web, Headless, Governance, and Provider behavior.

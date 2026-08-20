@@ -131,3 +131,5 @@ seam 正是替换一个提供方就能改变整个产品的原因。文件系统
 | 将注册项限定到单个 agent | 使用该 agent 的 `agent.ctx` |
 
 [扩展实操手册](cookbook/extension-cookbook.md)将功能映射到能力，并索引[包](cookbook/adding-a-package.md)、[工具](cookbook/adding-a-tool.md)、[LLM（大语言模型）适配器](cookbook/adding-an-llm-adapter.md)、[Chat 节点](cookbook/adding-a-conversation-node.md)和[设置卡片](cookbook/adding-a-settings-card.md)的分步指南。
+
+可选的 `apps/launcher` 宿主会生成 `dsh-launcher.exe`。它发现 Profile 目录，让用户选择 Profile 和工作目录，然后启动现有的 `dsh --profile <name>` 进程。启动器不重新组装 Plugin，也不复制 Runtime；Desktop、Web、Headless、Governance 和 Provider 的行为仍由 Profile Bundle 负责。
