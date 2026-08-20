@@ -1,0 +1,4 @@
+# Optional profile layer for the bundled governance and bounded execution skills.
+- insert:
+    - id: agent-governance
+      name: '@deepseek-ai/dsh-agent-governance'

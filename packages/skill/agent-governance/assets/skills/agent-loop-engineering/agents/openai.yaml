@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Loop Engineering"
+  short_description: "Run isolated, low-context autonomous coding loops"
+  default_prompt: "Use $agent-loop-engineering to run this authorized goal through bounded Controller, Developer, and Stage Reviewer loops; isolate high-output work in scoped subagents, repair failures proactively, verify real behavior, keep compact evidence, and stop before independent final acceptance or a true authority gate."
+policy:
+  allow_implicit_invocation: true
