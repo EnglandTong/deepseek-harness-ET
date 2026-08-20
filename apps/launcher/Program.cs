@@ -72,11 +72,18 @@ internal sealed class LauncherForm : Form
         statusLabel.Dock = DockStyle.Fill;
         root.Controls.Add(statusLabel, 1, 4);
 
+        var actionPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+        actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         launchButton.Text = "启动 Profile";
         launchButton.Dock = DockStyle.Fill;
         launchButton.Height = 34;
         launchButton.Click += (_, _) => LaunchSelectedProfile();
-        root.Controls.Add(launchButton, 1, 5);
+        actionPanel.Controls.Add(launchButton, 0, 0);
+        var configureButton = new Button { Text = "Profile 配置", Dock = DockStyle.Fill };
+        configureButton.Click += (_, _) => OpenProfileConfig();
+        actionPanel.Controls.Add(configureButton, 1, 0);
+        root.Controls.Add(actionPanel, 1, 5);
 
         AddLabel(root, "启动日志", 6);
         logBox.Multiline = true;
@@ -125,6 +132,15 @@ internal sealed class LauncherForm : Form
     {
         using var dialog = new FolderBrowserDialog { SelectedPath = Directory.Exists(workspaceBox.Text) ? workspaceBox.Text : Environment.CurrentDirectory };
         if (dialog.ShowDialog(this) == DialogResult.OK) workspaceBox.Text = dialog.SelectedPath;
+    }
+
+    private void OpenProfileConfig()
+    {
+        if (profileBox.SelectedItem is not ProfileItem item) return;
+        var profileDirectory = Path.Combine(GetDshHome(), "profiles", item.Profile.Name);
+        Directory.CreateDirectory(profileDirectory);
+        Process.Start(new ProcessStartInfo("explorer.exe", profileDirectory) { UseShellExecute = true });
+        AppendLog($"已打开 Profile 配置目录：{profileDirectory}");
     }
 
     private void LaunchSelectedProfile()
