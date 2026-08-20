@@ -22,6 +22,7 @@ internal sealed class LauncherForm : Form
     private readonly TextBox runtimeBox = new();
     private readonly TextBox logBox = new();
     private readonly Button launchButton = new();
+    private readonly Button stopButton = new();
     private readonly Label statusLabel = new();
     private Process? process;
 
@@ -79,17 +80,23 @@ internal sealed class LauncherForm : Form
         statusLabel.Dock = DockStyle.Fill;
         root.Controls.Add(statusLabel, 1, 4);
 
-        var actionPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+        var actionPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3 };
         actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
         actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         launchButton.Text = "启动 Profile";
         launchButton.Dock = DockStyle.Fill;
         launchButton.Height = 34;
         launchButton.Click += (_, _) => LaunchSelectedProfile();
         actionPanel.Controls.Add(launchButton, 0, 0);
+        stopButton.Text = "停止 Profile";
+        stopButton.Dock = DockStyle.Fill;
+        stopButton.Enabled = false;
+        stopButton.Click += (_, _) => StopRunningProcess();
+        actionPanel.Controls.Add(stopButton, 1, 0);
         var configureButton = new Button { Text = "Profile 配置", Dock = DockStyle.Fill };
         configureButton.Click += (_, _) => OpenProfileConfig();
-        actionPanel.Controls.Add(configureButton, 1, 0);
+        actionPanel.Controls.Add(configureButton, 2, 0);
         root.Controls.Add(actionPanel, 1, 5);
 
         AddLabel(root, "启动日志", 6);
@@ -272,6 +279,7 @@ internal sealed class LauncherForm : Form
     {
         if (InvokeRequired) { BeginInvoke(() => SetRunning(running, status)); return; }
         launchButton.Enabled = !running;
+        stopButton.Enabled = running;
         statusLabel.Text = status;
     }
 
@@ -284,8 +292,28 @@ internal sealed class LauncherForm : Form
 
     private void StopProcess()
     {
-        if (process is not { HasExited: false }) return;
-        try { process.Kill(entireProcessTree: true); } catch { /* shutdown is best effort */ }
+        if (!HasRunningProcess()) return;
+        try { process?.Kill(entireProcessTree: true); } catch { /* shutdown is best effort */ }
+    }
+
+    private void StopRunningProcess()
+    {
+        if (!HasRunningProcess())
+        {
+            SetRunning(false, "没有正在运行的 Profile");
+            return;
+        }
+        try
+        {
+            process?.Kill(entireProcessTree: true);
+            AppendLog("已请求停止当前 Profile。");
+            SetRunning(false, "正在停止…");
+        }
+        catch (Exception error)
+        {
+            AppendLog($"停止失败：{error.Message}");
+            SetRunning(true, "停止失败");
+        }
     }
 
     private sealed class ProfileItem
