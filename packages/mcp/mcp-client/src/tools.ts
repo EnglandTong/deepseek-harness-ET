@@ -31,6 +31,8 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Timeout for each paginated `tools/list` discovery request (ms). */
+  listTimeoutMs: number
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -69,10 +71,11 @@ const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
 
 /** List without mutating the SDK's per-page output-validator cache. */
-function listToolsUncached(client: Client, cursor?: string) {
+function listToolsUncached(client: Client, cursor: string | undefined, timeoutMs: number) {
   return client.request(
     { method: 'tools/list', ...cursor === undefined ? {} : { params: { cursor } } },
     ListToolsResultSchema,
+    { timeout: timeoutMs },
   )
 }
 
@@ -150,7 +153,7 @@ export async function syncTools(
   const definitions = new Map<string, ToolDefinition>()
   let cursor: string | undefined
   do {
-    const response = await listToolsUncached(client, cursor)
+    const response = await listToolsUncached(client, cursor, opts.listTimeoutMs)
     for (const tool of response.tools) {
       const publicName = publicToolName(opts.serverName, tool.name)
       if (definitions.has(publicName)) {

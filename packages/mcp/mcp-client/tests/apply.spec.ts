@@ -82,6 +82,7 @@ const stdioConfig: Config = {
   env: {},
   cwd: '',
   toolCallTimeoutMs: 60_000,
+  startupTimeoutMs: 60_000,
   failOnStartupError: false,
 }
 
@@ -392,6 +393,7 @@ describe('apply (plugin lifecycle)', () => {
       url: 'http://localhost:3000/mcp',
       headers: { Authorization: 'Bearer x' },
       toolCallTimeoutMs: 30_000,
+      startupTimeoutMs: 60_000,
       failOnStartupError: false,
     }
 

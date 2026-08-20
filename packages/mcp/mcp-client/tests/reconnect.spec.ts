@@ -15,20 +15,27 @@ import type { Config } from '@deepseek-ai/dsh-mcp-client'
 
 // vi.mock factories are hoisted above every import/const, so the mock fns and
 // class must be created inside vi.hoisted to exist when the factories run.
-const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler, MockClient, instances } = vi.hoisted(() => {
-  const mockConnect = vi.fn<() => Promise<void>>()
-  const mockClose = vi.fn<() => Promise<void>>()
+const {
+  mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler,
+  MockClient, instances, requestOptions,
+} = vi.hoisted(() => {
+  const mockConnect = vi.fn((_transport: unknown, _options?: unknown) => Promise.resolve())
+  const mockClose = vi.fn(() => Promise.resolve())
   const mockListTools = vi.fn<(_params?: Record<string, unknown>) => Promise<unknown>>()
   const mockCallTool = vi.fn<(
     _params?: Record<string, unknown>, _compatibilitySchema?: unknown, _options?: unknown,
   ) => Promise<unknown>>()
   const mockSetNotificationHandler = vi.fn()
+  const requestOptions: unknown[] = []
   const mockRequest = vi.fn(async (
     request: { method: string; params?: Record<string, unknown> },
     _schema: unknown,
     options?: unknown,
   ): Promise<unknown> => {
-    if (request.method === 'tools/list') return await mockListTools(request.params)
+    if (request.method === 'tools/list') {
+      requestOptions.push(options)
+      return await mockListTools(request.params)
+    }
     if (request.method === 'tools/call') return await mockCallTool(request.params, undefined, options)
     throw new Error(`unexpected MCP request: ${request.method}`)
   })
@@ -41,7 +48,10 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
     constructor() { instances.push(this) }
   }
   const instances: MockClient[] = []
-  return { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler, MockClient, instances }
+  return {
+    mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler,
+    MockClient, instances, requestOptions,
+  }
 })
 
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
@@ -101,6 +111,7 @@ function stdioConfig(reconnect?: Config['reconnect']): Config {
     env: {},
     cwd: '',
     toolCallTimeoutMs: 60_000,
+    startupTimeoutMs: 60_000,
     failOnStartupError: false,
     ...reconnect === undefined ? {} : { reconnect },
   }
@@ -256,6 +267,22 @@ describe('reconnect supervisor', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('injects the configured startup timeout into the client handshake and tools/list requests', async () => {
+    const handle = startConnection(ctx, stdioConfig(), resolveReconnectPolicy(undefined, 'reconnect'))
+    await handle.ready
+    await handle.dispose()
+
+    // The initialize handshake's timeout rides connect()'s RequestOptions; each
+    // paginated tools/list request carries its own.
+    expect(mockConnect).toHaveBeenCalledWith(expect.anything(), { timeout: 60_000 })
+    expect(requestOptions.every(options => (options as { timeout?: number }).timeout === 60_000)).toBe(true)
+  })
+
+  it('rejects an out-of-bound startupTimeoutMs at load', () => {
+    expect(() => startConnection(ctx, { ...stdioConfig(), startupTimeoutMs: 0 }, resolveReconnectPolicy(undefined, 'reconnect')))
+      .toThrow('startupTimeoutMs must be a positive finite number')
   })
 
   it('suppresses retry reporting when disposal owns a pending connect rejection', async () => {

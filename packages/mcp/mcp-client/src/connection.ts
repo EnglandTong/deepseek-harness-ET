@@ -53,6 +53,30 @@ const GENERATION_CLOSE_TIMEOUT_MS = 5_000
 export type ResolvedReconnectPolicy = Readonly<Required<ReconnectConfig>>
 
 /**
+ * Default startup timeout (ms) for the connection handshake and each paginated
+ * `tools/list` request. Matches the MCP SDK's own request default so existing
+ * deployments see no behavior change until they opt in.
+ */
+export const DEFAULT_STARTUP_TIMEOUT_MS = 60_000
+
+/**
+ * The one explicit resolve step from raw `startupTimeoutMs` config to the
+ * bound the supervisor runs. Programmatic construction may bypass Schemastery
+ * normalization, so the bound is re-judged here — misconfiguration fails the
+ * plugin instance at load.
+ *
+ * @param value - Raw `startupTimeoutMs` config value.
+ * @param path - Diagnostic prefix naming the config location in thrown messages.
+ * @returns The validated timeout in milliseconds.
+ */
+export function resolveStartupTimeoutMs(value: number, path: string): number {
+  if (!Number.isFinite(value) || value <= 0 || value > MAX_TIMER_DELAY_MS) {
+    throw new Error(`${path} must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`)
+  }
+  return value
+}
+
+/**
  * The one explicit resolve step from raw reconnect config to the policy the
  * supervisor runs. Programmatic construction may bypass Schemastery
  * normalization, so every default and bound is re-judged here — misconfiguration
@@ -122,10 +146,12 @@ export interface ConnectionHandle {
  */
 export function startConnection(ctx: Context, config: Config, policy: ResolvedReconnectPolicy): ConnectionHandle {
   const label = `mcp-client(${config.serverName})`
+  const startupTimeoutMs = resolveStartupTimeoutMs(config.startupTimeoutMs, `mcp-client(${config.serverName}): startupTimeoutMs`)
   const opts: ToolBridgeOptions = {
     registrationFailure: 'contain',
     serverName: config.serverName,
     toolCallTimeoutMs: config.toolCallTimeoutMs,
+    listTimeoutMs: startupTimeoutMs,
   }
   // The initial sync uses 'throw' when failOnStartupError is configured, so
   // a registration conflict propagates to the startup-await path. Re-syncs
@@ -269,7 +295,11 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       },
     )
     try {
-      await generation.connect(createTransport(config))
+      // SDK 1.29 routes the initialize handshake's timeout through connect()'s
+      // RequestOptions; injecting the configured startup timeout keeps an
+      // unresponsive server from delaying activation and teardown past the
+      // deployment's own bound.
+      await generation.connect(createTransport(config), { timeout: startupTimeoutMs })
       if (hasClosed()) {
         attemptSettled = true
         generationDown(generation)
