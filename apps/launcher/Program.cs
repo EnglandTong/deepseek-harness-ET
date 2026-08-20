@@ -63,9 +63,16 @@ internal sealed class LauncherForm : Form
         root.Controls.Add(workspacePanel, 1, 2);
 
         AddLabel(root, "DSH Runtime", 3);
+        var runtimePanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+        runtimePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        runtimePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
         runtimeBox.Dock = DockStyle.Fill;
         runtimeBox.Text = DiscoverRuntime();
-        root.Controls.Add(runtimeBox, 1, 3);
+        runtimePanel.Controls.Add(runtimeBox, 0, 0);
+        var runtimeBrowse = new Button { Text = "选择…", Dock = DockStyle.Fill };
+        runtimeBrowse.Click += (_, _) => BrowseRuntime();
+        runtimePanel.Controls.Add(runtimeBrowse, 1, 0);
+        root.Controls.Add(runtimePanel, 1, 3);
 
         AddLabel(root, "状态", 4);
         statusLabel.Text = "就绪";
@@ -125,7 +132,7 @@ internal sealed class LauncherForm : Form
     {
         var configured = Environment.GetEnvironmentVariable("DSH_RUNTIME");
         if (!string.IsNullOrWhiteSpace(configured)) return configured;
-        return OperatingSystem.IsWindows() ? "dsh.cmd" : "dsh";
+        return FindOnPath(OperatingSystem.IsWindows() ? "dsh.cmd" : "dsh") ?? (OperatingSystem.IsWindows() ? "dsh.cmd" : "dsh");
     }
 
     private void BrowseWorkspace()
@@ -143,6 +150,12 @@ internal sealed class LauncherForm : Form
         AppendLog($"已打开 Profile 配置目录：{profileDirectory}");
     }
 
+    private void BrowseRuntime()
+    {
+        using var dialog = new OpenFileDialog { Filter = "DSH Runtime|dsh.exe;dsh.cmd;dsh.bat|All files|*.*", CheckFileExists = true };
+        if (dialog.ShowDialog(this) == DialogResult.OK) runtimeBox.Text = dialog.FileName;
+    }
+
     private void LaunchSelectedProfile()
     {
         if (process is { HasExited: false })
@@ -157,9 +170,19 @@ internal sealed class LauncherForm : Form
             return;
         }
 
+        var runtime = ResolveRuntime(runtimeBox.Text.Trim(), workspaceBox.Text);
+        if (runtime is null)
+        {
+            const string message = "找不到 DSH Runtime。请安装 DSH，或使用“选择…”指定 dsh.cmd/dsh.exe；也可以设置 DSH_RUNTIME。";
+            SetRunning(false, "Runtime 未找到");
+            AppendLog(message);
+            MessageBox.Show(this, message, "DSH Launcher", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         var startInfo = new ProcessStartInfo
         {
-            FileName = runtimeBox.Text.Trim(),
+            FileName = runtime,
             WorkingDirectory = workspaceBox.Text,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -186,6 +209,36 @@ internal sealed class LauncherForm : Form
             AppendLog(error.Message);
             MessageBox.Show(this, error.Message, "DSH Launcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private static string? ResolveRuntime(string value, string workspace)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (File.Exists(value)) return Path.GetFullPath(value);
+        var workspaceRuntime = Path.Combine(workspace, "node_modules", ".bin", value);
+        if (File.Exists(workspaceRuntime)) return workspaceRuntime;
+        return FindOnPath(value);
+    }
+
+    private static string? FindOnPath(string command)
+    {
+        try
+        {
+            using var lookup = Process.Start(new ProcessStartInfo
+            {
+                FileName = "where.exe",
+                Arguments = command,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            });
+            if (lookup is null) return null;
+            var result = lookup.StandardOutput.ReadLine()?.Trim();
+            lookup.WaitForExit(2000);
+            return string.IsNullOrWhiteSpace(result) ? null : result;
+        }
+        catch (Exception) { return null; }
     }
 
     private void SetRunning(bool running, string status)
