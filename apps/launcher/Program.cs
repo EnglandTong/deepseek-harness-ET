@@ -160,7 +160,7 @@ internal sealed class LauncherForm : Form
 
     private void LaunchSelectedProfile()
     {
-        if (process is { HasExited: false })
+        if (HasRunningProcess())
         {
             MessageBox.Show(this, "当前已有 Profile 正在运行。", "DSH Launcher", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
@@ -202,20 +202,37 @@ internal sealed class LauncherForm : Form
 
         try
         {
-            process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
-            process.OutputDataReceived += (_, args) => AppendLog(args.Data);
-            process.ErrorDataReceived += (_, args) => AppendLog(args.Data);
-            process.Exited += (_, _) => BeginInvoke(() => SetRunning(false, $"进程已退出，代码 {process.ExitCode}"));
-            if (!process.Start()) throw new InvalidOperationException("无法启动 DSH Runtime");
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            var startedProcess = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+            startedProcess.OutputDataReceived += (_, args) => AppendLog(args.Data);
+            startedProcess.ErrorDataReceived += (_, args) => AppendLog(args.Data);
+            startedProcess.Exited += (_, _) => BeginInvoke(() => SetRunning(false, $"进程已退出，代码 {startedProcess.ExitCode}"));
+            if (!startedProcess.Start()) throw new InvalidOperationException("无法启动 DSH Runtime");
+            process = startedProcess;
+            startedProcess.BeginOutputReadLine();
+            startedProcess.BeginErrorReadLine();
             SetRunning(true, $"已启动 {item.Profile.Name}");
         }
         catch (Exception error)
         {
+            process = null;
             SetRunning(false, "启动失败");
             AppendLog(error.Message);
             MessageBox.Show(this, error.Message, "DSH Launcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private bool HasRunningProcess()
+    {
+        if (process is null) return false;
+        try
+        {
+            return !process.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            process.Dispose();
+            process = null;
+            return false;
         }
     }
 
