@@ -11,6 +11,10 @@
     { "path": "../../../vendor/schemastery" },
     { "path": "../skill" },
     { "path": "../skill-filesystem" },
+    { "path": "../../core/session" },
+    { "path": "../../core/tools" },
+    { "path": "../../core/system-prompt" },
+    { "path": "../../subagent/subagent" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]
 }

@@ -2,3 +2,11 @@
 - insert:
     - id: agent-governance
       name: '@deepseek-ai/dsh-agent-governance'
+    - id: subagent-dsh-sdk-governance
+      name: '@deepseek-ai/dsh-subagent-dsh-sdk'
+      config:
+        providerName: dsh-governance
+        command: node
+        args: ['packages/examples/jsonrpc-demo/lib/bin.js', 'examples/jsonrpc-agent/cordis.yml']
+        provider: deepseek-official
+        model: deepseek-v4-flash

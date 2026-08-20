@@ -1,0 +1,3 @@
+interface:
+  display_name: Agent Governance Routing
+  short_description: Route bounded work to the right Agent with approval and evidence
