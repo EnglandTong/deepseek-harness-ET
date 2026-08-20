@@ -132,6 +132,8 @@ internal sealed class LauncherForm : Form
     {
         var configured = Environment.GetEnvironmentVariable("DSH_RUNTIME");
         if (!string.IsNullOrWhiteSpace(configured)) return configured;
+        if (OperatingSystem.IsWindows() && File.Exists(Path.Combine(Environment.CurrentDirectory, "apps", "cli", "src", "bin.ts")))
+            return "pnpm.cmd dsh";
         return FindOnPath(OperatingSystem.IsWindows() ? "dsh.cmd" : "dsh") ?? (OperatingSystem.IsWindows() ? "dsh.cmd" : "dsh");
     }
 
@@ -170,10 +172,15 @@ internal sealed class LauncherForm : Form
             return;
         }
 
-        var runtime = ResolveRuntime(runtimeBox.Text.Trim(), workspaceBox.Text);
+        var sourceCheckout = File.Exists(Path.Combine(workspaceBox.Text, "apps", "cli", "src", "bin.ts"));
+        var sourceMode = sourceCheckout && (runtimeBox.Text.Trim().Equals("dsh.cmd", StringComparison.OrdinalIgnoreCase)
+            || runtimeBox.Text.Trim().Equals("dsh", StringComparison.OrdinalIgnoreCase)
+            || runtimeBox.Text.Trim().Equals("pnpm dsh", StringComparison.OrdinalIgnoreCase)
+            || runtimeBox.Text.Trim().Equals("pnpm.cmd dsh", StringComparison.OrdinalIgnoreCase));
+        var runtime = sourceMode ? FindOnPath("pnpm.cmd") : ResolveRuntime(runtimeBox.Text.Trim(), workspaceBox.Text);
         if (runtime is null)
         {
-            const string message = "找不到 DSH Runtime。请安装 DSH，或使用“选择…”指定 dsh.cmd/dsh.exe；也可以设置 DSH_RUNTIME。";
+            const string message = "找不到 DSH Runtime。请安装 DSH，或使用“选择…”指定 dsh.cmd/dsh.exe；源码仓库可使用 pnpm.cmd dsh；也可以设置 DSH_RUNTIME。";
             SetRunning(false, "Runtime 未找到");
             AppendLog(message);
             MessageBox.Show(this, message, "DSH Launcher", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -189,6 +196,7 @@ internal sealed class LauncherForm : Form
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
+        if (sourceMode || runtimeBox.Text.Trim().Equals("pnpm.cmd dsh", StringComparison.OrdinalIgnoreCase)) startInfo.ArgumentList.Add("dsh");
         startInfo.ArgumentList.Add("--profile");
         startInfo.ArgumentList.Add(item.Profile.Name);
 
@@ -214,6 +222,8 @@ internal sealed class LauncherForm : Form
     private static string? ResolveRuntime(string value, string workspace)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
+        if (value.Equals("pnpm dsh", StringComparison.OrdinalIgnoreCase) || value.Equals("pnpm.cmd dsh", StringComparison.OrdinalIgnoreCase))
+            return FindOnPath("pnpm.cmd");
         if (File.Exists(value)) return Path.GetFullPath(value);
         var workspaceRuntime = Path.Combine(workspace, "node_modules", ".bin", value);
         if (File.Exists(workspaceRuntime)) return workspaceRuntime;
