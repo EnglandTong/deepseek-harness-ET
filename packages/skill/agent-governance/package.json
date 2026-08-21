@@ -24,6 +24,15 @@
   },
   "files": ["lib/index.js", "lib/invariant.js", "assets", "lib/types/**/*.d.ts"],
   "license": "MIT",
+  "dsh": {
+    "plugin": {
+      "capabilities": ["governance-tools", "agent-routing", "session-replay", "file-handoff"],
+      "skills": ["agent-governance-runtime", "agent-governance-routing", "agent-governance-handoff", "agent-governance-acceptance"],
+      "mcpServers": [],
+      "hooks": [],
+      "providers": ["subagent-codex", "subagent-claude-code", "subagent-dsh-sdk"]
+    }
+  },
   "peerDependencies": {
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-skill": "workspace:^",

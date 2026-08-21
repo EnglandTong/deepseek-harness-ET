@@ -6,9 +6,11 @@ One optional Harness Plugin that distributes governance Skills and coordinates C
 
 The plugin mounts the existing filesystem skill provider with an embedded bundled root. Skill catalog summaries remain available through the normal `dsh-tool-skill` flow; full instructions and referenced resources load only when a skill is selected. Project and user skill roots keep their normal precedence and scope behavior.
 
-The runtime provides deterministic recommendations and model-facing `governance_*` tools for listing Agents, routing, approval, delegation, reporting, and acceptance. Routing never grants execution authority: delegation requires a recorded approval, and a child report is not acceptance.
+The Runtime provides a Provider-backed registry, deterministic recommendations, risk and permission metadata, and model-facing `governance_*` tools for availability checks, routing, approval, delegation, cancellation, reporting, handoff, and acceptance. Routing never grants execution authority: delegation requires a recorded approval, and a child report is not acceptance.
 
-Governance facts are appended as `governance/*` Session Events. Large task packets remain in workspace files and are referenced by the session rather than copied into every prompt. The Plugin does not modify `agent-loop`; Codex and Claude Code use their existing Providers, while DeepSeek Harness uses the existing `subagent-dsh-sdk` process boundary when that Provider is loaded.
+Governance facts are appended as replayable `governance/*` Session Events, including Provider checks, approvals, delegation lifecycle, evidence, handoffs, and acceptance. Large task packets remain in workspace files and are referenced by the session rather than copied into every prompt. Handoff paths are restricted to the session workspace. The Plugin does not modify `agent-loop`; Codex and Claude Code use their existing Providers, while DeepSeek Harness uses the existing `subagent-dsh-sdk` process boundary when that Provider is loaded.
+
+Delegation uses the tool cancellation signal and a configurable task timeout (30 minutes by default); both cancel the existing Subagent Run and are recorded separately from the child report. The package also exports type-only contributor interfaces for a future native extension bridge. They describe lifecycle seams without registering hooks or changing the Agent Loop in this release.
 
 ## Mount
 
@@ -25,11 +27,11 @@ Add the package to a profile or bundle patch:
 
 #### What the model sees
 
-Three short catalog entries from `dsh-tool-skill`, including `agent-governance-routing`. A selected skill body and its referenced resource guidance appear only after the model loads that skill through the existing `skill` tool.
+Six short catalog entries from `dsh-tool-skill`, including runtime, routing, handoff, and acceptance guidance. A selected skill body and its referenced resource guidance appear only after the model loads that skill through the existing `skill` tool.
 
 #### Token effect
 
-The initial catalog adds three descriptions; each loaded body adds its own retained tool-result content. The plugin does not duplicate a body into a second synthetic prompt message.
+The initial catalog adds six descriptions; each loaded body adds its own retained tool-result content. The plugin does not duplicate a body into a second synthetic prompt message.
 
 #### KV Cache effect
 

@@ -429,6 +429,55 @@ Types: [SandboxExecutionPolicy](sandbox.md)
 
 Source: [`packages/fs/fs/src/index.ts:86`](../../packages/fs/fs/src/index.ts)
 
+<a id="ctxsnapshots--snapshotservice-abstract-seam"></a>
+
+### `ctx.snapshots` — `SnapshotService` (abstract seam)
+
+Abstract workspace-snapshot provider. One instance serves one session scope (`ctx.snapshots`); the local provider captures lazily through fs write/edit-intent waterfalls and stores content-addressed blobs. Restore is destructive-change-guarded by default: it discards current content the snapshot predates, so providers route it through the approval seam unless SnapshotRestoreOptions.rollback marks an atomic self-rollback.
+
+```ts cordis-catalog
+/**
+ * Create a snapshot of the workspace state for the agent's session.
+ * @param agent - the agent whose workspace and session the snapshot belongs to.
+ * @param opts - reason and cancellation signal.
+ * @returns the created snapshot's metadata; content capture itself is lazy
+ *   and ownership stays with the provider.
+ */
+abstract create(agent: Agent, opts?: SnapshotCreateOptions): Promise<SnapshotInfo>
+
+/**
+ * List the session's snapshots, oldest first.
+ * @param agent - the agent whose session's snapshots are listed.
+ * @returns snapshot metadata in creation order.
+ */
+abstract list(agent: Agent): Promise<SnapshotInfo[]>
+
+/**
+ * Restore the workspace to a snapshot. Rewrites files whose captured content
+ * differs, removes files the snapshot predates, and reports unmanaged paths
+ * verbatim. Destructive by default — providers gate it on approval unless
+ * the caller marks an atomic rollback.
+ * @param agent - the agent whose workspace is restored.
+ * @param id - the snapshot to restore.
+ * @param opts - rollback marker and cancellation signal.
+ * @returns what was rewritten, removed, and honestly left unmanaged.
+ */
+abstract restore(agent: Agent, id: SnapshotId, opts?: SnapshotRestoreOptions): Promise<SnapshotRestoreOutcome>
+
+/**
+ * Compute the line diff between a snapshot and the current workspace content.
+ * @param agent - the agent whose workspace is compared.
+ * @param id - the snapshot to diff against.
+ * @param opts - cancellation signal.
+ * @returns per-file differences plus the unmanaged-path boundary.
+ */
+abstract diff(agent: Agent, id: SnapshotId, opts?: SnapshotDiffOptions): Promise<SnapshotDiff>
+```
+
+Types: [Agent](core.md)
+
+Source: [`packages/fs/snapshot/src/index.ts:95`](../../packages/fs/snapshot/src/index.ts)
+
 <a id="fs-events"></a>
 
 ### `fs/*` events

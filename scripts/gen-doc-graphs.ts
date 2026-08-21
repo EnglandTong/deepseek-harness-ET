@@ -479,6 +479,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Providers implement transports; the service also owns optional Activation-based continuation orchestration, tool-subagent selects one-shot or continuable delegation, tool-subagent-control delivers follow-ups, and tool-ralph requires one fresh structured-output route.',
   },
   {
+    key: 'governance',
+    pkg: 'agent-governance',
+    title: 'Governance Runtime coordination service',
+    mode: 'seam',
+    implementations: [],
+    consumers: ['agent-governance'],
+    note: 'Owns live harness diagnostics, deterministic routing, approval, bounded delegation, replayable governance events, file handoff references, and independent acceptance while reusing the shared subagent Provider registry.',
+  },
+  {
     key: 'jobs',
     pkg: 'jobs',
     title: 'Background job registry',

@@ -19,7 +19,16 @@
   },
   "files": ["lib/index.js", "lib/invariant.js", "cordis.patch.yml", "lib/types/**/*.d.ts"],
   "license": "MIT",
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "plugin": {
+      "capabilities": ["governance-tools", "agent-routing", "session-replay", "file-handoff"],
+      "skills": ["agent-governance-runtime", "agent-governance-routing", "agent-governance-handoff", "agent-governance-acceptance"],
+      "mcpServers": [],
+      "hooks": [],
+      "providers": ["subagent-codex", "subagent-claude-code", "subagent-dsh-sdk"]
+    }
+  },
   "dependencies": {
     "@deepseek-ai/dsh-agent-governance": "workspace:^",
     "@deepseek-ai/dsh-subagent-dsh-sdk": "workspace:^"

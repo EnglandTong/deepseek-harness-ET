@@ -5,7 +5,7 @@
     - id: subagent-dsh-sdk-governance
       name: '@deepseek-ai/dsh-subagent-dsh-sdk'
       config:
-        providerName: dsh-governance
+        providerName: dsh-sdk
         command: node
         args: ['packages/examples/jsonrpc-demo/lib/bin.js', 'examples/jsonrpc-agent/cordis.yml']
         provider: deepseek-official

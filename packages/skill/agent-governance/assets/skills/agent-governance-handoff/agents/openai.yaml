@@ -1,0 +1,3 @@
+interface:
+  display_name: Agent Governance Handoff
+  short_description: Pass bounded work through file references without expanding context

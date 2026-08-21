@@ -119,7 +119,30 @@ export interface Config {
   includeDefaultRoots?: boolean
   /** Watch local skill roots for changes. */
   watch?: boolean
+  /** Require explicit approval before write-capable delegation. */
+  requireApproval?: boolean
+  /** Maximum nested governance delegation depth. */
+  maxNestedDepth?: number
+  /** Default permission for routed work. */
+  defaultPermission?: GovernanceRuntimeConfig['defaultPermission']
+  /** Maximum wall-clock time for one delegated task. */
+  taskTimeoutMs?: number
 }
+
+/** Deployment configuration for the Governance Runtime. */
+export interface GovernanceRuntimeConfig {
+  /** Require explicit approval for every write-capable delegation. */
+  requireApproval: boolean
+  /** Maximum child depth allowed below a Governance task. */
+  maxNestedDepth: number
+  /** Default permission used when a route does not specify one. */
+  defaultPermission: GovernancePermissionMode
+  /** Maximum wall-clock time for one delegated task. */
+  taskTimeoutMs: number
+}
+
+/** Permission mode requested for a delegated task. */
+export type GovernancePermissionMode = 'read-only' | 'workspace-write' | 'full-access'
 ```
 
 Source: [`packages/skill/agent-governance/src/index.ts:25`](../packages/skill/agent-governance/src/index.ts)

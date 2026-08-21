@@ -427,44 +427,154 @@ Source: [`packages/goal/goal/src/domain.ts:66`](../packages/goal/goal/src/domain
 #### `governance/accept` — log-only
 
 ```ts persistence-catalog
-/** Records the independent acceptance decision after a report. */
+/** Legacy acceptance event retained for pre-2.0 session logs. */
 'governance/accept': { taskId: string; decision: GovernanceAcceptance; reason?: string }
 ```
 
-Source: [`packages/skill/agent-governance/src/types.ts:70`](../packages/skill/agent-governance/src/types.ts)
+Source: [`packages/skill/agent-governance/src/types.ts:215`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governanceacceptance--log-only"></a>
+
+#### `governance/acceptance` — log-only
+
+```ts persistence-catalog
+/** Records the independent acceptance decision after a report. */
+'governance/acceptance': { taskId: string; decision: GovernanceAcceptance; reason?: string; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:203`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governanceapproval--log-only"></a>
+
+#### `governance/approval` — log-only
+
+```ts persistence-catalog
+/** Records the provider decision for a recommendation. */
+'governance/approval': { taskId: string; decision: GovernanceDecision; reason?: string; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:189`](../packages/skill/agent-governance/src/types.ts)
 
 <a id="governancedecision--log-only"></a>
 
 #### `governance/decision` — log-only
 
 ```ts persistence-catalog
-/** Records the provider decision for a recommendation. */
+/** Legacy approval event retained for pre-2.0 session logs. */
 'governance/decision': { taskId: string; decision: GovernanceDecision; reason?: string }
 ```
 
-Source: [`packages/skill/agent-governance/src/types.ts:64`](../packages/skill/agent-governance/src/types.ts)
+Source: [`packages/skill/agent-governance/src/types.ts:211`](../packages/skill/agent-governance/src/types.ts)
 
 <a id="governancedelegate--log-only"></a>
 
 #### `governance/delegate` — log-only
 
 ```ts persistence-catalog
-/** Records the provider selected for an approved delegation. */
+/** Legacy delegation event retained for pre-2.0 session logs. */
 'governance/delegate': { taskId: string; harness: HarnessId; provider: string }
 ```
 
-Source: [`packages/skill/agent-governance/src/types.ts:66`](../packages/skill/agent-governance/src/types.ts)
+Source: [`packages/skill/agent-governance/src/types.ts:213`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancedelegation-cancelled--log-only"></a>
+
+#### `governance/delegation-cancelled` — log-only
+
+```ts persistence-catalog
+/** Records cancellation before or during child execution. */
+'governance/delegation-cancelled': { taskId: string; reason?: string; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:205`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancedelegation-failed--log-only"></a>
+
+#### `governance/delegation-failed` — log-only
+
+```ts persistence-catalog
+/** Records a child adapter failure. */
+'governance/delegation-failed': { taskId: string; provider: string; summary: string; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:207`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancedelegation-progress--log-only"></a>
+
+#### `governance/delegation-progress` — log-only
+
+```ts persistence-catalog
+/** Records a child progress update without embedding its full output. */
+'governance/delegation-progress': { taskId: string; status: GovernanceTaskStatus; summary: string; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:193`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancedelegation-start--log-only"></a>
+
+#### `governance/delegation-start` — log-only
+
+```ts persistence-catalog
+/** Records the provider selected for an approved delegation. */
+'governance/delegation-start': { taskId: string; harness: HarnessId; provider: string; workspace: string; permission: GovernancePermissionMode; nestedDepth: number; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:191`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancefile-change-summary--log-only"></a>
+
+#### `governance/file-change-summary` — log-only
+
+```ts persistence-catalog
+/** Records a bounded file-change or test-evidence summary. */
+'governance/file-change-summary': { taskId: string; evidence: readonly GovernanceEvidence[]; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:197`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancehandoff--log-only"></a>
+
+#### `governance/handoff` — log-only
+
+```ts persistence-catalog
+/** Records the next file-based handoff location. */
+'governance/handoff': { taskId: string; path: string; sha256?: string; summary: string; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:201`](../packages/skill/agent-governance/src/types.ts)
 
 <a id="governanceharness--log-only"></a>
 
 #### `governance/harness` — log-only
 
 ```ts persistence-catalog
-/** Records a deterministic recommendation for a bounded task. */
+/** Legacy harness observation retained so existing session logs remain readable. */
 'governance/harness': { harness: HarnessDescriptor }
 ```
 
-Source: [`packages/skill/agent-governance/src/types.ts:60`](../packages/skill/agent-governance/src/types.ts)
+Source: [`packages/skill/agent-governance/src/types.ts:209`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governanceharness-check--log-only"></a>
+
+#### `governance/harness-check` — log-only
+
+```ts persistence-catalog
+/** Records a provider availability check. */
+'governance/harness-check': { harness: HarnessDescriptor; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:185`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governanceharness-registered--log-only"></a>
+
+#### `governance/harness-registered` — log-only
+
+```ts persistence-catalog
+/** Records a deterministic recommendation for a bounded task. */
+'governance/harness-registered': { harness: HarnessDescriptor; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:183`](../packages/skill/agent-governance/src/types.ts)
 
 <a id="governancereport--log-only"></a>
 
@@ -472,10 +582,10 @@ Source: [`packages/skill/agent-governance/src/types.ts:60`](../packages/skill/ag
 
 ```ts persistence-catalog
 /** Records child completion status and evidence references. */
-'governance/report': GovernanceReport
+'governance/report': GovernanceReport & { timestamp: string }
 ```
 
-Source: [`packages/skill/agent-governance/src/types.ts:68`](../packages/skill/agent-governance/src/types.ts)
+Source: [`packages/skill/agent-governance/src/types.ts:195`](../packages/skill/agent-governance/src/types.ts)
 
 <a id="governanceroute--log-only"></a>
 
@@ -483,10 +593,21 @@ Source: [`packages/skill/agent-governance/src/types.ts:68`](../packages/skill/ag
 
 ```ts persistence-catalog
 /** Records human approval or rejection of a recommendation. */
-'governance/route': RouteRecommendation & { taskId: string }
+'governance/route': RouteRecommendation & { taskId: string; timestamp: string }
 ```
 
-Source: [`packages/skill/agent-governance/src/types.ts:62`](../packages/skill/agent-governance/src/types.ts)
+Source: [`packages/skill/agent-governance/src/types.ts:187`](../packages/skill/agent-governance/src/types.ts)
+
+<a id="governancetest-evidence--log-only"></a>
+
+#### `governance/test-evidence` — log-only
+
+```ts persistence-catalog
+/** Records test evidence separately from the child narrative. */
+'governance/test-evidence': { taskId: string; evidence: readonly GovernanceEvidence[]; timestamp: string }
+```
+
+Source: [`packages/skill/agent-governance/src/types.ts:199`](../packages/skill/agent-governance/src/types.ts)
 
 ### `hook/*`
 

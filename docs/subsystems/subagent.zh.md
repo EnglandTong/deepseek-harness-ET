@@ -477,6 +477,124 @@ spawn 和 fork 后端通过 `parent.ctx` 创建一个普通的单次 agent，将
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — this section is byte-identical in both language sides of the page. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxgovernance--governanceservice"></a>
+
+### `ctx.governance` — `GovernanceService`
+
+Session-backed registry, router, approval gate, and adapter coordinator.
+
+```ts cordis-catalog
+/** Apply validated deployment configuration before a task is routed.
+ * @param config - partial deployment configuration.
+ */
+configure(config: Partial<GovernanceRuntimeConfig>): void
+
+/** List current Provider-backed harness descriptors.
+ * @returns Current live harness descriptors.
+ */
+listAgents(): readonly HarnessDescriptor[]
+
+/** Check all Providers and persist the observation for replay.
+ * @param session - Session receiving the observations.
+ * @returns Current live harness descriptors.
+ */
+listAgentsFor(session: Session): readonly HarnessDescriptor[]
+
+/** Recommend a harness without granting execution authority.
+ * @param task - Task to classify.
+ * @returns A recommendation that still requires approval.
+ */
+route(task: string): RouteRecommendation
+
+/** Create and persist a routable task.
+ * @param session - Session receiving the route event.
+ * @param task - Task to classify and route.
+ * @returns The durable task id and recommendation.
+ */
+routeFor(session: Session, task: string): { taskId: string; recommendation: RouteRecommendation }
+
+/** Approve a pending task for delegation.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @param session - Optional Session receiving the approval event.
+ */
+approve(taskId: string, session?: Session): void
+
+/** Reject a pending task.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @param reason - Rejection reason.
+ * @param session - Optional Session receiving the rejection event.
+ */
+reject(taskId: string, reason: string, session?: Session): void
+
+/** Return the recommendation for a known task.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @returns The stored route recommendation.
+ */
+recommendation(taskId: string): RouteRecommendation
+
+/** Return whether a task has explicit execution approval.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @returns Whether the task is approved.
+ */
+isApproved(taskId: string): boolean
+
+/** Execute an approved task through its existing DSH Subagent Provider.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @param prompt - Bounded prompt delivered to the child.
+ * @param parent - Agent requesting the delegation.
+ * @param session - Session supplying the workspace and receiving events.
+ * @param signal - Optional caller cancellation signal.
+ * @returns The normalized child report.
+ */
+async delegate(taskId: string, prompt: readonly ContentBlock[], parent: Agent, session: Session, signal?: AbortSignal): Promise<GovernanceReport>
+
+/** Cancel a live adapter run and record the cancellation request.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @param session - Optional Session receiving the cancellation event.
+ * @param reason - Optional cancellation reason.
+ */
+async cancel(taskId: string, session?: Session, reason?: string): Promise<void>
+
+/** Persist a child report without converting it into acceptance.
+ * @param report - Normalized child report.
+ * @param session - Optional Session receiving the report and evidence events.
+ */
+report(report: GovernanceReport, session?: Session): void
+
+/** Persist a handoff reference; full content remains in the referenced file.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @param path - Relative or absolute handoff path.
+ * @param summary - Short handoff summary.
+ * @param session - Session supplying the workspace and receiving the event.
+ * @param sha256 - Optional content hash.
+ */
+handoff(taskId: string, path: string, summary: string, session: Session, sha256?: string): void
+
+/** Persist an explicit acceptance decision after a child report.
+ * @param taskId - Task id returned by {@link routeFor}.
+ * @param decision - Independent acceptance decision.
+ * @param reason - Optional acceptance reason.
+ * @param session - Optional Session receiving the decision event.
+ */
+accept(taskId: string, decision: GovernanceAcceptance, reason?: string, session?: Session): void
+
+/** Return governance events that can rebuild the task state.
+ * @param session - Agent Session whose events are inspected.
+ * @returns Governance events in their original order.
+ */
+events(session: Agent['session']): readonly SessionEvent[]
+
+/** Replay route, approval, delegation, report and acceptance state.
+ * @param session - Agent Session whose events are replayed.
+ * @returns Reconstructed task states.
+ */
+replay(session: Agent['session']): readonly GovernanceTaskState[]
+```
+
+Types: [Agent](core.md) · [ContentBlock](llm-streaming.md) · [Session](session.md) · [SessionEvent](session.md)
+
+Source: [`packages/skill/agent-governance/src/service.ts:52`](../../packages/skill/agent-governance/src/service.ts)
+
 <a id="ctxsubagents--subagentruntime"></a>
 
 ### `ctx.subagents` — `SubagentRuntime`

@@ -16,18 +16,24 @@ describe('dsh-agent-governance', () => {
     const fiber = await ctx.plugin(AgentGovernance, { includeDefaultRoots: false, watch: false })
 
     expect((await ctx.skills.list()).map(skill => skill.name)).toEqual([
+      'agent-governance-acceptance',
+      'agent-governance-handoff',
       'agent-governance-routing',
+      'agent-governance-runtime',
       'agent-loop-engineering',
       'cms-project-governance',
     ])
     expect((await ctx.skills.get('cms-project-governance'))?.content).toContain('CMS Project Governance')
     expect((await ctx.skills.get('agent-loop-engineering'))?.content).toContain('Agent Loop Engineering')
-    expect(['governance_list_agents', 'governance_route_task', 'governance_approve', 'governance_delegate', 'governance_accept'].map(name => ctx.tools.get(name)?.name)).toEqual([
+    expect(['governance_list_agents', 'governance_check_agents', 'governance_route_task', 'governance_approve', 'governance_delegate', 'governance_cancel', 'governance_accept', 'governance_handoff'].map(name => ctx.tools.get(name)?.name)).toEqual([
       'governance_list_agents',
+      'governance_check_agents',
       'governance_route_task',
       'governance_approve',
       'governance_delegate',
+      'governance_cancel',
       'governance_accept',
+      'governance_handoff',
     ])
 
     await fiber.dispose()
@@ -44,7 +50,10 @@ describe('dsh-agent-governance', () => {
     await ctx.plugin(AgentGovernance, { includeDefaultRoots: false, watch: false })
 
     expect((await ctx.skills.list()).map(skill => skill.name)).toEqual([
+      'agent-governance-acceptance',
+      'agent-governance-handoff',
       'agent-governance-routing',
+      'agent-governance-runtime',
       'agent-loop-engineering',
       'cms-project-governance',
     ])

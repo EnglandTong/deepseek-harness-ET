@@ -1,0 +1,3 @@
+interface:
+  display_name: Agent Governance Runtime
+  short_description: Check provider availability and delegation safety before execution

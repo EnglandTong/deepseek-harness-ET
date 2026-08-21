@@ -716,6 +716,102 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'governance',
+    summary: 'Session-backed registry, router, approval gate, and adapter coordinator.',
+    description: 'Session-backed registry, router, approval gate, and adapter coordinator.',
+    methods: [
+      {
+        signature: 'configure(config: Partial<GovernanceRuntimeConfig>): void',
+        description: 'Apply validated deployment configuration before a task is routed.',
+        parameters: [{ name: 'config', description: 'partial deployment configuration.' }],
+      },
+      {
+        signature: 'listAgents(): readonly HarnessDescriptor[]',
+        description: 'List current Provider-backed harness descriptors.',
+        parameters: [],
+        returns: 'Current live harness descriptors.',
+      },
+      {
+        signature: 'listAgentsFor(session: Session): readonly HarnessDescriptor[]',
+        description: 'Check all Providers and persist the observation for replay.',
+        parameters: [{ name: 'session', description: 'Session receiving the observations.' }],
+        returns: 'Current live harness descriptors.',
+      },
+      {
+        signature: 'route(task: string): RouteRecommendation',
+        description: 'Recommend a harness without granting execution authority.',
+        parameters: [{ name: 'task', description: 'Task to classify.' }],
+        returns: 'A recommendation that still requires approval.',
+      },
+      {
+        signature: 'routeFor(session: Session, task: string): { taskId: string; recommendation: RouteRecommendation }',
+        description: 'Create and persist a routable task.',
+        parameters: [{ name: 'session', description: 'Session receiving the route event.' }, { name: 'task', description: 'Task to classify and route.' }],
+        returns: 'The durable task id and recommendation.',
+      },
+      {
+        signature: 'approve(taskId: string, session?: Session): void',
+        description: 'Approve a pending task for delegation.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }, { name: 'session', description: 'Optional Session receiving the approval event.' }],
+      },
+      {
+        signature: 'reject(taskId: string, reason: string, session?: Session): void',
+        description: 'Reject a pending task.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }, { name: 'reason', description: 'Rejection reason.' }, { name: 'session', description: 'Optional Session receiving the rejection event.' }],
+      },
+      {
+        signature: 'recommendation(taskId: string): RouteRecommendation',
+        description: 'Return the recommendation for a known task.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }],
+        returns: 'The stored route recommendation.',
+      },
+      {
+        signature: 'isApproved(taskId: string): boolean',
+        description: 'Return whether a task has explicit execution approval.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }],
+        returns: 'Whether the task is approved.',
+      },
+      {
+        signature: 'async delegate(taskId: string, prompt: readonly ContentBlock[], parent: Agent, session: Session, signal?: AbortSignal): Promise<GovernanceReport>',
+        description: 'Execute an approved task through its existing DSH Subagent Provider.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }, { name: 'prompt', description: 'Bounded prompt delivered to the child.' }, { name: 'parent', description: 'Agent requesting the delegation.' }, { name: 'session', description: 'Session supplying the workspace and receiving events.' }, { name: 'signal', description: 'Optional caller cancellation signal.' }],
+        returns: 'The normalized child report.',
+      },
+      {
+        signature: 'async cancel(taskId: string, session?: Session, reason?: string): Promise<void>',
+        description: 'Cancel a live adapter run and record the cancellation request.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }, { name: 'session', description: 'Optional Session receiving the cancellation event.' }, { name: 'reason', description: 'Optional cancellation reason.' }],
+      },
+      {
+        signature: 'report(report: GovernanceReport, session?: Session): void',
+        description: 'Persist a child report without converting it into acceptance.',
+        parameters: [{ name: 'report', description: 'Normalized child report.' }, { name: 'session', description: 'Optional Session receiving the report and evidence events.' }],
+      },
+      {
+        signature: 'handoff(taskId: string, path: string, summary: string, session: Session, sha256?: string): void',
+        description: 'Persist a handoff reference; full content remains in the referenced file.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }, { name: 'path', description: 'Relative or absolute handoff path.' }, { name: 'summary', description: 'Short handoff summary.' }, { name: 'session', description: 'Session supplying the workspace and receiving the event.' }, { name: 'sha256', description: 'Optional content hash.' }],
+      },
+      {
+        signature: 'accept(taskId: string, decision: GovernanceAcceptance, reason?: string, session?: Session): void',
+        description: 'Persist an explicit acceptance decision after a child report.',
+        parameters: [{ name: 'taskId', description: 'Task id returned by {@link routeFor}.' }, { name: 'decision', description: 'Independent acceptance decision.' }, { name: 'reason', description: 'Optional acceptance reason.' }, { name: 'session', description: 'Optional Session receiving the decision event.' }],
+      },
+      {
+        signature: 'events(session: Agent[\'session\']): readonly SessionEvent[]',
+        description: 'Return governance events that can rebuild the task state.',
+        parameters: [{ name: 'session', description: 'Agent Session whose events are inspected.' }],
+        returns: 'Governance events in their original order.',
+      },
+      {
+        signature: 'replay(session: Agent[\'session\']): readonly GovernanceTaskState[]',
+        description: 'Replay route, approval, delegation, report and acceptance state.',
+        parameters: [{ name: 'session', description: 'Agent Session whose events are replayed.' }],
+        returns: 'Reconstructed task states.',
+      },
+    ],
+  },
+  {
     key: 'invariants',
     summary: 'Package-owned invariant registry with global and regex-based selection.',
     description: 'Package-owned invariant registry with global and regex-based selection.',
@@ -1524,6 +1620,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Load and validate the winning candidate, passing its opaque discovery locator back to the provider. Cancellation is rechecked after selection, including cache hits, and raced against loading so an uncooperative provider cannot hang the caller.',
         parameters: [{ name: 'name', description: 'kebab-case skill name.' }, { name: 'options', description: 'view options; `scope` selects the viewing agent\'s layers, `cwd` selects workspace-sensitive skills, and `signal` cancels work.' }],
         returns: 'the full skill, including body content, or `undefined`.',
+      },
+    ],
+  },
+  {
+    key: 'snapshots',
+    summary: 'Abstract workspace-snapshot provider.',
+    description: 'Abstract workspace-snapshot provider. One instance serves one session scope (`ctx.snapshots`); the local provider captures lazily through fs write/edit-intent waterfalls and stores content-addressed blobs. Restore is destructive-change-guarded by default: it discards current content the snapshot predates, so providers route it through the approval seam unless SnapshotRestoreOptions.rollback marks an atomic self-rollback.',
+    methods: [
+      {
+        signature: 'abstract create(agent: Agent, opts?: SnapshotCreateOptions): Promise<SnapshotInfo>',
+        description: 'Create a snapshot of the workspace state for the agent\'s session.',
+        parameters: [{ name: 'agent', description: 'the agent whose workspace and session the snapshot belongs to.' }, { name: 'opts', description: 'reason and cancellation signal.' }],
+        returns: 'the created snapshot\'s metadata; content capture itself is lazy and ownership stays with the provider.',
+      },
+      {
+        signature: 'abstract list(agent: Agent): Promise<SnapshotInfo[]>',
+        description: 'List the session\'s snapshots, oldest first.',
+        parameters: [{ name: 'agent', description: 'the agent whose session\'s snapshots are listed.' }],
+        returns: 'snapshot metadata in creation order.',
+      },
+      {
+        signature: 'abstract restore(agent: Agent, id: SnapshotId, opts?: SnapshotRestoreOptions): Promise<SnapshotRestoreOutcome>',
+        description: 'Restore the workspace to a snapshot. Rewrites files whose captured content differs, removes files the snapshot predates, and reports unmanaged paths verbatim. Destructive by default — providers gate it on approval unless the caller marks an atomic rollback.',
+        parameters: [{ name: 'agent', description: 'the agent whose workspace is restored.' }, { name: 'id', description: 'the snapshot to restore.' }, { name: 'opts', description: 'rollback marker and cancellation signal.' }],
+        returns: 'what was rewritten, removed, and honestly left unmanaged.',
+      },
+      {
+        signature: 'abstract diff(agent: Agent, id: SnapshotId, opts?: SnapshotDiffOptions): Promise<SnapshotDiff>',
+        description: 'Compute the line diff between a snapshot and the current workspace content.',
+        parameters: [{ name: 'agent', description: 'the agent whose workspace is compared.' }, { name: 'id', description: 'the snapshot to diff against.' }, { name: 'opts', description: 'cancellation signal.' }],
+        returns: 'per-file differences plus the unmanaged-path boundary.',
       },
     ],
   },
@@ -3136,6 +3263,50 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GoalView extends GoalSnapshot {\n    readonly roundsStarted: number;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly activation: GoalActivation;\n}',
   },
   {
+    name: 'GovernanceAcceptance',
+    declaration: 'export type GovernanceAcceptance = \'accepted\' | \'rejected\' | \'needs-follow-up\';',
+  },
+  {
+    name: 'GovernanceDecision',
+    declaration: 'export type GovernanceDecision = \'pending\' | \'approved\' | \'rejected\';',
+  },
+  {
+    name: 'GovernanceEvidence',
+    declaration: 'export interface GovernanceEvidence {\n    readonly kind: \'file\' | \'test\' | \'summary\';\n    readonly path?: string;\n    readonly command?: string;\n    readonly exitCode?: number;\n    readonly sha256?: string;\n    readonly summary: string;\n}',
+  },
+  {
+    name: 'GovernancePermissionMode',
+    declaration: 'export type GovernancePermissionMode = \'read-only\' | \'workspace-write\' | \'full-access\';',
+  },
+  {
+    name: 'GovernanceReport',
+    declaration: 'export interface GovernanceReport {\n    readonly taskId: string;\n    readonly harness: HarnessId;\n    readonly status: \'completed\' | \'failed\' | \'cancelled\';\n    readonly summary: string;\n    readonly changedFiles: readonly string[];\n    readonly tests: readonly {\n        command: string;\n        exitCode: number;\n    }[];\n    readonly workspace?: string;\n    readonly permission?: GovernancePermissionMode;\n    readonly statusDetail?: string;\n    readonly evidence?: readonly GovernanceEvidence[];\n}',
+  },
+  {
+    name: 'GovernanceRiskLevel',
+    declaration: 'export type GovernanceRiskLevel = \'low\' | \'medium\' | \'high\';',
+  },
+  {
+    name: 'GovernanceRuntimeConfig',
+    declaration: 'export interface GovernanceRuntimeConfig {\n    requireApproval: boolean;\n    maxNestedDepth: number;\n    defaultPermission: GovernancePermissionMode;\n    taskTimeoutMs: number;\n}',
+  },
+  {
+    name: 'GovernanceTaskState',
+    declaration: 'export interface GovernanceTaskState {\n    readonly taskId: string;\n    readonly task: string;\n    readonly status: GovernanceTaskStatus;\n    readonly harness?: HarnessId;\n    readonly provider?: string;\n    readonly decision?: GovernanceDecision;\n    readonly acceptance?: GovernanceAcceptance;\n    readonly report?: GovernanceReport;\n}',
+  },
+  {
+    name: 'GovernanceTaskStatus',
+    declaration: 'export type GovernanceTaskStatus = \'routed\' | \'approved\' | \'running\' | \'completed\' | \'failed\' | \'cancelled\';',
+  },
+  {
+    name: 'HarnessDescriptor',
+    declaration: 'export interface HarnessDescriptor {\n    readonly id: HarnessId;\n    readonly provider: string;\n    readonly capabilities: readonly string[];\n    readonly strengths: readonly string[];\n    readonly permission: GovernancePermissionMode;\n    readonly riskLevel: GovernanceRiskLevel;\n    readonly supportsSubagent: boolean;\n    readonly supportsNativeSession: boolean;\n    readonly supportsStreaming: boolean;\n    readonly supportsCancellation: boolean;\n    readonly supportsFiles: boolean;\n    readonly supportsImages: boolean;\n    readonly supportsContinuable: boolean;\n    readonly available: boolean;\n    readonly diagnosticCode?: \'provider-not-loaded\' | \'cli-not-found\' | \'sdk-not-configured\' | \'workspace-invalid\';\n    readonly diagnostic?: string;\n    readonly lastCheckedAt?: string;\n}',
+  },
+  {
+    name: 'HarnessId',
+    declaration: 'export type HarnessId = \'codex\' | \'claude-code\' | \'deepseek-harness\';',
+  },
+  {
     name: 'ImageAttachmentLimits',
     declaration: 'export interface ImageAttachmentLimits {\n    maxImageBytes: number;\n    maxImagesPerMessage: number;\n    maxMessageImageBytes: number;\n    maxImagePixels: number;\n    mediaTypes: readonly ImageMediaType[];\n}',
   },
@@ -3636,6 +3807,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
   {
+    name: 'RouteRecommendation',
+    declaration: 'export interface RouteRecommendation {\n    readonly task: string;\n    readonly primary: HarnessId;\n    readonly alternatives: readonly HarnessId[];\n    readonly reasons: readonly string[];\n    readonly riskLevel: GovernanceRiskLevel;\n    readonly permission: GovernancePermissionMode;\n    readonly requiresApproval: boolean;\n}',
+  },
+  {
     name: 'RpcError',
     declaration: 'export type RpcError = {\n    [C in RpcErrorCode]: {\n        code: C;\n        message: string;\n        details: RpcErrorDetailsMap[C];\n    };\n}[RpcErrorCode];',
   },
@@ -4070,6 +4245,42 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillViewOptions',
     declaration: 'export interface SkillViewOptions extends SkillLookupOptions {\n    readonly scope?: ScopeKey | undefined;\n}',
+  },
+  {
+    name: 'SnapshotCreateOptions',
+    declaration: 'export interface SnapshotCreateOptions {\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'SnapshotDiff',
+    declaration: 'export interface SnapshotDiff {\n    readonly id: SnapshotId;\n    readonly files: readonly SnapshotFileDiff[];\n    readonly truncated: boolean;\n    readonly unmanagedPaths: readonly string[];\n}',
+  },
+  {
+    name: 'SnapshotDiffOptions',
+    declaration: 'export interface SnapshotDiffOptions {\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'SnapshotFileDiff',
+    declaration: 'export interface SnapshotFileDiff {\n    readonly displayPath: string;\n    readonly kind: \'modified\' | \'added\' | \'removed\';\n    readonly hunks: readonly SnapshotHunk[];\n    readonly oldText: string | null;\n    readonly newText: string | null;\n}',
+  },
+  {
+    name: 'SnapshotHunk',
+    declaration: 'export interface SnapshotHunk {\n    readonly oldStart: number;\n    readonly oldLines: number;\n    readonly newStart: number;\n    readonly newLines: number;\n    readonly lines: readonly string[];\n}',
+  },
+  {
+    name: 'SnapshotId',
+    declaration: 'export type SnapshotId = Branded<\'SnapshotId\'>;',
+  },
+  {
+    name: 'SnapshotInfo',
+    declaration: 'export interface SnapshotInfo {\n    readonly id: SnapshotId;\n    readonly createdAt: number;\n    readonly reason: string;\n    readonly entryCount: number;\n    readonly partial: boolean;\n}',
+  },
+  {
+    name: 'SnapshotRestoreOptions',
+    declaration: 'export interface SnapshotRestoreOptions {\n    readonly rollback?: boolean;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'SnapshotRestoreOutcome',
+    declaration: 'export interface SnapshotRestoreOutcome {\n    readonly id: SnapshotId;\n    readonly restored: readonly string[];\n    readonly removed: readonly string[];\n    readonly unmanaged: readonly string[];\n}',
   },
   {
     name: 'SpillLocator',

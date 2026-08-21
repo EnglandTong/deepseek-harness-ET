@@ -70,6 +70,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   e2b: 'subprocess.md',
   fs: 'filesystem.md',
   goals: 'goal.md',
+  governance: 'subagent.md',
   webServer: 'web-server.md',
   invariants: 'invariants.md',
   llm: 'llm-streaming.md',
@@ -97,6 +98,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   systemPrompt: 'system-prompt.md',
   jobs: 'jobs.md',
   sessionTelemetry: 'session-telemetry.md',
+  snapshots: 'filesystem.md',
   tokenMeter: 'token-meter.md',
   toolResultPruner: 'compaction.md',
   tools: 'tools.md',
@@ -505,6 +507,12 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  GovernanceAcceptance: 'Governance Runtime contract is owned by packages/skill/agent-governance/README.md',
+  GovernanceReport: 'Governance Runtime contract is owned by packages/skill/agent-governance/README.md',
+  GovernanceRuntimeConfig: 'Governance Runtime configuration is owned by packages/skill/agent-governance/README.md',
+  GovernanceTaskState: 'Governance Runtime replay state is owned by packages/skill/agent-governance/README.md',
+  HarnessDescriptor: 'Governance harness metadata is owned by packages/skill/agent-governance/README.md',
+  RouteRecommendation: 'Governance routing contract is owned by packages/skill/agent-governance/README.md',
   z: 'schemastery schema constructor is owned by vendor/schemastery (vendored upstream)',
   BeginCommandRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',
   InsertReferenceRequest: 'event-local request contract is owned by packages/client/ui-input-trigger/src/types.ts',

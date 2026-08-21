@@ -17,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-subagent'
 import type { JsonValue } from '@deepseek-ai/dsh-session'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { GovernanceService } from './service.ts'
+import { GovernanceService, type GovernanceRuntimeConfig } from './service.ts'
 
 const bundledSkillRoot = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'skills')
 
@@ -31,6 +31,14 @@ export interface Config {
   includeDefaultRoots?: boolean
   /** Watch local skill roots for changes. */
   watch?: boolean
+  /** Require explicit approval before write-capable delegation. */
+  requireApproval?: boolean
+  /** Maximum nested governance delegation depth. */
+  maxNestedDepth?: number
+  /** Default permission for routed work. */
+  defaultPermission?: GovernanceRuntimeConfig['defaultPermission']
+  /** Maximum wall-clock time for one delegated task. */
+  taskTimeoutMs?: number
 }
 
 /** Runtime configuration schema. */
@@ -39,6 +47,10 @@ export const Config: z<Config> = z.object({
   providerName: z.string().min(1).default('agent-governance'),
   includeDefaultRoots: z.boolean().default(true),
   watch: z.boolean().default(true),
+  requireApproval: z.boolean().default(true),
+  maxNestedDepth: z.number().min(0).default(1),
+  defaultPermission: z.union(['read-only', 'workspace-write', 'full-access']).default('workspace-write'),
+  taskTimeoutMs: z.number().min(1).default(30 * 60 * 1000),
 })
 
 export const name = 'agent-governance'
@@ -53,6 +65,14 @@ export const inject = ['skills', 'tools', 'subagents', 'systemPrompt']
  */
 export function apply(ctx: Context, config: Config = {}): void {
   ctx.plugin(GovernanceService)
+  ctx.inject(['governance'], (configCtx: Context) => {
+    configCtx.governance.configure({
+      requireApproval: config.requireApproval ?? true,
+      maxNestedDepth: config.maxNestedDepth ?? 1,
+      defaultPermission: config.defaultPermission ?? 'workspace-write',
+      taskTimeoutMs: config.taskTimeoutMs ?? 30 * 60 * 1000,
+    })
+  })
   ctx.plugin(SkillFileSystem, {
     bundledSkillDir: config.bundledSkillDir ?? bundledSkillRoot,
     providerName: config.providerName ?? 'agent-governance',
@@ -69,7 +89,7 @@ export function apply(ctx: Context, config: Config = {}): void {
 
   ctx.tools.register(defineTool({
     name: 'governance_list_agents',
-    description: 'List the configured Codex, Claude Code, and DeepSeek Harness Agent providers and their availability.',
+    description: 'List the configured Codex, Claude Code, and DeepSeek Harness Agent providers and their current availability. This is diagnostic data, not execution authorization.',
     parameters: {},
     output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     execute: (_args, exec) => {
@@ -79,8 +99,19 @@ export function apply(ctx: Context, config: Config = {}): void {
   }))
 
   ctx.tools.register(defineTool({
+    name: 'governance_check_agents',
+    description: 'Check Agent Provider availability and persist diagnostics in the Session. This does not start a child Agent.',
+    parameters: {},
+    output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    execute: (_args, exec) => {
+      if (exec.agent === undefined) throw new Error('governance_check_agents requires an agent')
+      return Promise.resolve([...ctx.governance.listAgentsFor(exec.agent.session)] as unknown as JsonValue)
+    },
+  }))
+
+  ctx.tools.register(defineTool({
     name: 'governance_delegate',
-    description: 'Delegate an approved routed task to its selected Agent. Approval is mandatory and completion still requires governance_accept.',
+    description: 'Delegate an approved routed task to its selected Agent. Approval is mandatory, workspace and nested-depth checks apply, and completion still requires governance_accept.',
     parameters: {
       task_id: { type: 'string', required: true, description: 'The task id from governance_route_task.' },
       prompt: { type: 'string', required: true, description: 'The bounded task prompt for the selected child Agent.' },
@@ -89,21 +120,20 @@ export function apply(ctx: Context, config: Config = {}): void {
     async execute(args, exec) {
       if (exec.agent === undefined) throw new Error('governance_delegate requires an agent')
       if (!ctx.governance.isApproved(args.task_id)) throw new Error(`governance task ${args.task_id} is not approved`)
-      const route = ctx.governance.recommendation(args.task_id)
-      const provider = ctx.governance.listAgents().find(agent => agent.id === route.primary)
-      if (provider === undefined || !provider.available) throw new Error(`governance provider ${route.primary} is unavailable`)
-      const run = await ctx.subagents.start(provider.provider, {
-        prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
-        parent: exec.agent,
-        signal: exec.signal,
-      })
-      exec.agent.session.append('governance/delegate', { taskId: args.task_id, harness: route.primary, provider: provider.provider })
-      const result = await run.result
-      await run.dispose()
-      const summary = result.output.filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text').map(block => block.text).join('')
-      const report = { taskId: args.task_id, harness: route.primary, status: result.stopReason === 'completed' ? 'completed' as const : 'failed' as const, summary, changedFiles: [], tests: [] }
-      ctx.governance.report(report, exec.agent.session)
+      const report = await ctx.governance.delegate(args.task_id, [{ type: 'text', text: args.prompt }] as ContentBlock[], exec.agent, exec.agent.session, exec.signal)
       return report as unknown as JsonValue
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'governance_cancel',
+    description: 'Cancel a running delegated task and record the cancellation. Cancellation does not accept the task.',
+    parameters: { task_id: { type: 'string', required: true, description: 'The governance task id.' }, reason: { type: 'string', description: 'Optional cancellation reason.' } },
+    output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    async execute(args, exec) {
+      if (exec.agent === undefined) throw new Error('governance_cancel requires an agent')
+      await ctx.governance.cancel(args.task_id, exec.agent.session, args.reason)
+      return { task_id: args.task_id, status: 'cancelled' }
     },
   }))
 
@@ -186,6 +216,23 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (exec.agent === undefined) throw new Error('governance_accept requires an agent')
       ctx.governance.accept(args.task_id, args.decision, args.reason, exec.agent.session)
       return Promise.resolve({ task_id: args.task_id, decision: args.decision })
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'governance_handoff',
+    description: 'Record a file-based handoff reference. The referenced file remains outside model context and must contain the bounded next-step packet.',
+    parameters: {
+      task_id: { type: 'string', required: true, description: 'The governance task id.' },
+      path: { type: 'string', required: true, description: 'The handoff file path.' },
+      summary: { type: 'string', required: true, description: 'Short handoff summary.' },
+      sha256: { type: 'string', description: 'Optional SHA-256 of the handoff file.' },
+    },
+    output: { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    execute: (args, exec) => {
+      if (exec.agent === undefined) throw new Error('governance_handoff requires an agent')
+      ctx.governance.handoff(args.task_id, args.path, args.summary, exec.agent.session, args.sha256)
+      return Promise.resolve({ task_id: args.task_id, path: args.path, recorded: true })
     },
   }))
 }
