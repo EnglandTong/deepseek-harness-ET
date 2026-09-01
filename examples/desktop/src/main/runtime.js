@@ -114,9 +114,13 @@ class RuntimeSupervisor extends EventEmitter {
     t.start()
 
     // Handshake. protocol v2 params — v1 servers ignore the extra fields.
+    // `provider` selects the adapter the SDK server validates at initialize;
+    // the server mounts its DeepSeek fallback only for "deepseek-official"
+    // and rejects unknown providers, so each profile carries its own.
     try {
       const info = await client.request('initialize', {
         cwd: this.profile.cwd || (this.profile.daemon && this.profile.daemon.cwd),
+        provider: this.profile.provider,
         model: this.profile.model,
         protocolVersion: this.profile.protocolVersion || 2,
         capabilities: this.profile.capabilities || { interruptions: true },

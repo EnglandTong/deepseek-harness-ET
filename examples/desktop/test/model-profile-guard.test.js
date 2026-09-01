@@ -5,8 +5,8 @@
 // dropdown listed a global KNOWN_MODELS array unrelated to which
 // adapters the active profile actually registered. This suite locks:
 //
-//   1. profiles.js:PROFILE_MODELS matches each yml leaf's `models:` block
-//      (source of truth) — and modelsFor() reflects it.
+//   1. profiles.js:PROFILE_MODELS declares what each profile's composition
+//      can route — and modelsFor() reflects it.
 //   2. main.js exports the supportedModels list on runtime:status AND
 //      through the new `profiles:models` IPC handler.
 //   3. preload exposes profilesModels().
@@ -69,50 +69,38 @@ test('modelsFor: the profile default model IS in its supported list (no self-mis
   }
 })
 
-// Source-of-truth check: PROFILE_MODELS mirrors each yml leaf's `models:`
-// block, so a future yaml edit that adds/removes a model can't drift
-// silently. We parse the yaml the shell-way — one leaf per profile — and
-// compare the `models:` list line-by-line.
-test('PROFILE_MODELS: each entry matches its yml leaf models: block', () => {
+// Source-of-truth check: PROFILE_MODELS declares what each profile's
+// composition can route. The leaf no longer carries a `models:` block — the
+// current adapter contract delivers the model per session over the wire, so
+// the shell's dropdown list is shell-owned. What stays lockstep is the
+// adapter mounting: an echo leaf must mount the shell's mock adapter (the
+// only `mock-echo` registration), and a deepseek leaf must mount the
+// DeepSeek adapter (the `deepseek-official` route).
+test('PROFILE_MODELS: each leaf mounts the adapter its model list needs', () => {
   const leafFor = {
-    'daemon-echo': null,           // mock-llm — no models: block in yaml, always mock-echo
-    'stdio-echo': null,            // mock-llm — ditto
+    'daemon-echo': null,           // mock-llm — no leaf on disk, always mock-echo
+    'stdio-echo': path.join(ROOT, 'config/echo-jsonrpc.yml'),
     'daemon-vibe-echo': null,      // mock-llm — ditto
     'stdio-deepseek': path.join(ROOT, 'config/deepseek-jsonrpc.yml'),
     'stdio-vibe-deepseek': path.join(ROOT, 'config/deepseek-vibe.yml'),
   }
   for (const [profileName, leafPath] of Object.entries(leafFor)) {
     const expected = profiles.modelsFor(profileName)
-    if (!leafPath) {
-      // Mock-llm profiles: the mock-llm adapter hardcodes `mock-echo`;
-      // PROFILE_MODELS just has to say so.
+    const yaml = leafPath ? fs.readFileSync(leafPath, 'utf8') : ''
+    if (expected[0] === 'mock-echo') {
       assert.deepEqual(expected, ['mock-echo'],
-        `${profileName}: mock-llm profile must only list mock-echo`)
+        `${profileName}: mock profile must only list mock-echo`)
+      if (leafPath) {
+        assert.match(yaml, /plugins\/mock-llm\.mjs/,
+          `${profileName}: echo leaf must mount the shell's mock adapter`)
+      }
       continue
     }
-    const yaml = fs.readFileSync(leafPath, 'utf8')
-    // Find the `models:` block under `llm-deepseek` and collect its
-    // `- <name>` entries. The block is 6-space-indented, sits inside a
-    // `config:` map, and terminates when the indent drops back to a
-    // 2-space `- id:` list item. Bail early at the first line whose
-    // trim doesn't start with `- ` after the models: header.
-    const lines = yaml.split('\n')
-    let inBlock = false
-    const yamlModels = []
-    for (const rawLine of lines) {
-      if (!inBlock) {
-        if (/^\s+models:\s*$/.test(rawLine)) { inBlock = true; continue }
-        continue
-      }
-      // Inside the block: entries look like `      - deepseek-v4-flash`.
-      const m = /^\s+-\s+([\w-]+)\s*$/.exec(rawLine)
-      if (m) { yamlModels.push(m[1]); continue }
-      // Any other non-empty line terminates the block.
-      if (rawLine.trim() !== '') break
+    assert.match(yaml, /@deepseek-ai\/dsh-llm-deepseek/,
+      `${profileName}: deepseek leaf must mount the DeepSeek adapter for ${JSON.stringify(expected)}`)
+    for (const model of expected) {
+      assert.match(model, /^deepseek-/, `${profileName}: unexpected model id ${model}`)
     }
-    assert.ok(yamlModels.length > 0, `${leafPath}: parsed empty models: block`)
-    assert.deepEqual(expected.slice().sort(), yamlModels.slice().sort(),
-      `${profileName} PROFILE_MODELS drift vs ${path.basename(leafPath)}: expected ${JSON.stringify(yamlModels)}, got ${JSON.stringify(expected)}`)
   }
 })
 

@@ -77,7 +77,81 @@ const HARNESS_DEV = resolveHarnessDev(__dirname, process.env, require('node:fs')
 
 const jsonrpcBin = path.join(HARNESS_DEV, 'packages', 'examples', 'jsonrpc-demo', 'src', 'bin.ts')
 const daemonBin = path.join(HARNESS_DEV, 'packages', 'examples', 'daemon-demo', 'src', 'bin.ts')
-const configDir = path.resolve(__dirname, '..', '..', 'config')
+
+// The cordis leaves live in the checkout: their relative plugin entries
+// (and every bare name) resolve against the checkout tree, and a packaged
+// copy elsewhere would strand those relative paths. The local dir (relative
+// to this module) covers an exotic layout where the shell repo and the SDK
+// checkout are separate and only the shell has config/.
+const checkoutConfigDir = path.join(HARNESS_DEV, 'examples', 'desktop', 'config')
+const localConfigDir = path.resolve(__dirname, '..', '..', 'config')
+const configDir = require('node:fs').existsSync(path.join(checkoutConfigDir, 'daemon-echo.yml'))
+  ? checkoutConfigDir
+  : localConfigDir
+
+// The runtime requires Node >= 22.19 (zstd session persistence among
+// others). Electron 33 embeds Node 20.18, so a GUI run (dev or packaged)
+// must spawn a real node: system node from PATH, or an explicit
+// DSH_RUNTIME_NODE override. Plain-node smoke tests keep process.execPath.
+const RUNTIME_NODE_MIN = [22, 19]
+
+function nodeVersionAtLeast(version, min) {
+  const parts = String(version).split('.').map(Number)
+  if (parts.some(Number.isNaN)) return false
+  for (let i = 0; i < min.length; i += 1) {
+    const part = parts[i] ?? 0
+    if (part > min[i]) return true
+    if (part < min[i]) return false
+  }
+  return true
+}
+
+function probeNodeVersion(cmd) {
+  return require('node:child_process')
+    .execFileSync(cmd, ['-p', 'process.versions.node'], { encoding: 'utf8', timeout: 5000 })
+    .trim()
+}
+
+/**
+ * Pick the node executable that spawns the runtime. An explicit
+ * DSH_RUNTIME_NODE that is missing or too old fails loud here (the user
+ * named it); the PATH probe falls through silently so a node-less machine
+ * lands on the embedded binary and preflight owns the failure message.
+ * @param {Record<string, string | undefined>} env - environment source.
+ * @param {string} embeddedVersion - process.versions.node of this process.
+ * @returns {{ cmd: string, source: 'env' | 'path' | 'embedded', version: string, adequate: boolean }}
+ */
+function resolveRuntimeNode(env, embeddedVersion) {
+  const explicit = env.DSH_RUNTIME_NODE
+  if (explicit) {
+    let version
+    try {
+      version = probeNodeVersion(explicit)
+    } catch (err) {
+      throw new Error(
+        `DSH_RUNTIME_NODE=${explicit} could not be probed (${err.message}); ` +
+        `set it to a node executable >= ${RUNTIME_NODE_MIN.join('.')}.`,
+      )
+    }
+    if (!nodeVersionAtLeast(version, RUNTIME_NODE_MIN)) {
+      throw new Error(
+        `DSH_RUNTIME_NODE=${explicit} is ${version}; the DSH runtime needs >= ${RUNTIME_NODE_MIN.join('.')}.`,
+      )
+    }
+    return { cmd: explicit, source: 'env', version, adequate: true }
+  }
+  try {
+    const version = probeNodeVersion('node')
+    if (nodeVersionAtLeast(version, RUNTIME_NODE_MIN)) {
+      return { cmd: 'node', source: 'path', version, adequate: true }
+    }
+  } catch (_) {
+    // No node on PATH — the embedded binary below decides adequacy.
+  }
+  return { cmd: process.execPath, source: 'embedded', version: embeddedVersion, adequate: nodeVersionAtLeast(embeddedVersion, RUNTIME_NODE_MIN) }
+}
+
+const RUNTIME_NODE = resolveRuntimeNode(process.env, process.versions.node)
 
 // HARNESS_DEV phantom-path guard (2026-07-18, fix/harness-dev-guard).
 //
@@ -114,6 +188,22 @@ function preflightRuntimeBinaries(name) {
   } else {
     try { require('node:fs').accessSync(jsonrpcBin) } catch (_) { missing.push(jsonrpcBin) }
   }
+  let depsInstalled = true
+  try { require.resolve('tsx', { paths: [HARNESS_DEV] }) } catch (_) { depsInstalled = false }
+  if (!depsInstalled) {
+    // Fail loud here instead of a bare node ERR_MODULE_NOT_FOUND after the
+    // runtime crashes at boot.
+    throw Object.assign(new Error(
+      `The DSH checkout at ${HARNESS_DEV} has no installed dependencies — run "pnpm install" in ${HARNESS_DEV}.`,
+    ), { code: 'DSH_RUNTIME_DEPS_MISSING' })
+  }
+  if (!RUNTIME_NODE.adequate) {
+    throw Object.assign(new Error(
+      `The DSH runtime needs Node >= ${RUNTIME_NODE_MIN.join('.')} but only the embedded ` +
+      `Node ${RUNTIME_NODE.version} is available. Install Node ${RUNTIME_NODE_MIN.join('.')}+ ` +
+      `on PATH, or point DSH_RUNTIME_NODE at a suitable node executable.`,
+    ), { code: 'DSH_RUNTIME_NODE_TOO_OLD' })
+  }
   if (missing.length > 0) {
     const err = new Error(
       `DSH runtime SDK not found at ${missing.join(', ')}. ` +
@@ -145,13 +235,15 @@ function resolveDaemonLeaf(baseName = 'daemon-echo.yml') {
   }
 }
 
-// Resolve tsx (the TS loader for --import) as an absolute file so node's
-// --import resolution isn't affected by the parent's cwd. Falls back to the
-// bare specifier if resolution fails so a broken layout at least yields a
-// diagnosable "Cannot find package 'tsx'" instead of a silent early exit.
+// Resolve tsx as an absolute file URL so node's --import resolution isn't
+// affected by the parent's cwd. A Windows drive path (backslashes) parsed as
+// a bare --import specifier fails ESM resolution, so the URL form is used on
+// every platform. Falls back to the bare specifier if resolution fails so a
+// broken layout at least yields a diagnosable "Cannot find package 'tsx'"
+// instead of a silent early exit.
 const tsxSpecifier = (() => {
   try {
-    return require.resolve('tsx', { paths: [HARNESS_DEV] })
+    return require('node:url').pathToFileURL(require.resolve('tsx', { paths: [HARNESS_DEV] })).href
   } catch (_) {
     return 'tsx'
   }
@@ -212,10 +304,12 @@ const PROFILE_LEAF = {
 // global list (renderer.js:KNOWN_MODELS) so it happily let users pick a
 // model the active profile can't route.
 //
-// Source of truth = the yml leaf each profile boots against. Each entry
-// below mirrors the `id: llm-…` block's `models:` list in
-// `config/*.yml`, keyed by the profile id from PROFILE_LEAF above. Keep
-// these two maps in lockstep; the linked yaml is the schema.
+// Source of truth = what each profile's leaf mounts. Echo leaves mount the
+// shell's mock adapter (the only `mock-echo` registration); deepseek leaves
+// mount `@deepseek-ai/dsh-llm-deepseek` (the `deepseek-official` route,
+// whose model ids arrive per session over the wire). Keep this map aligned
+// with the leaves' adapter entries — test/model-profile-guard.test.js
+// locks the pairing.
 //
 //   daemon-echo         daemon-echo.yml     → mock-llm         → mock-echo
 //   stdio-echo          echo-jsonrpc.yml    → mock-llm         → mock-echo
@@ -266,8 +360,9 @@ function profile(name) {
       return {
         mode: 'daemon',
         leafName: PROFILE_LEAF['daemon-echo'],
+        provider: 'mock-echo',
         daemon: {
-          cmd: process.execPath,
+          cmd: RUNTIME_NODE.cmd,
           // resolveDaemonLeaf picks the user overlay when the Plugins tab or
           // onboarding step has written one, else the raw base leaf. Both are
           // valid daemon-demo inputs.
@@ -295,7 +390,8 @@ function profile(name) {
       return {
         mode: 'stdio',
         leafName: PROFILE_LEAF['stdio-echo'],
-        cmd: process.execPath,
+        provider: 'mock-echo',
+        cmd: RUNTIME_NODE.cmd,
         args: ['--import', tsxSpecifier, jsonrpcBin, path.join(configDir, PROFILE_LEAF['stdio-echo'])],
         cwd: HARNESS_DEV,
         env: { ...runtimeEnvBase },
@@ -308,7 +404,8 @@ function profile(name) {
       return {
         mode: 'stdio',
         leafName: PROFILE_LEAF['stdio-deepseek'],
-        cmd: process.execPath,
+        provider: 'deepseek-official',
+        cmd: RUNTIME_NODE.cmd,
         args: ['--import', tsxSpecifier, jsonrpcBin, path.join(configDir, PROFILE_LEAF['stdio-deepseek'])],
         cwd: HARNESS_DEV,
         env: { ...runtimeEnvBase },
@@ -326,8 +423,9 @@ function profile(name) {
       return {
         mode: 'daemon',
         leafName: PROFILE_LEAF['daemon-vibe-echo'],
+        provider: 'mock-echo',
         daemon: {
-          cmd: process.execPath,
+          cmd: RUNTIME_NODE.cmd,
           args: ['--import', tsxSpecifier, daemonBin, path.join(configDir, PROFILE_LEAF['daemon-vibe-echo'])],
           cwd: HARNESS_DEV,
           env: {
@@ -348,7 +446,8 @@ function profile(name) {
       return {
         mode: 'stdio',
         leafName: PROFILE_LEAF['stdio-vibe-deepseek'],
-        cmd: process.execPath,
+        provider: 'deepseek-official',
+        cmd: RUNTIME_NODE.cmd,
         args: ['--import', tsxSpecifier, jsonrpcBin, path.join(configDir, PROFILE_LEAF['stdio-vibe-deepseek'])],
         cwd: HARNESS_DEV,
         env: { ...runtimeEnvBase },

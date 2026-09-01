@@ -79,6 +79,34 @@ below for the full matrix; the "What's real vs demo" section right
 after that spells out which surfaces are live wire vs. fixture on
 each profile.
 
+## Windows double-click packaging
+
+`pnpm dist` (or `pnpm dist:dir` for an unpacked smoke build) packages the
+shell with [electron-builder](https://www.electron-builder.com/) into
+`dist/`:
+
+- **NSIS installer** — `DSH Desktop Setup <version>.exe`, with desktop and
+  Start-menu shortcuts.
+- **Portable exe** — `DSH-Desktop-Portable-<version>.exe`, a single file
+  that runs from wherever it is placed.
+
+Both open like any Windows app — no terminal, no `pnpm start`. The
+portable exe resolves its runtime checkout by walking up from its own
+directory, so dropping it inside (or under) a deepseek-harness checkout
+needs zero configuration.
+
+The packaged app still boots the runtime from a deepseek-harness checkout
+on disk (this is the local-checkout packaging stage; a fully self-contained
+runtime bundle is a separate change). Checkout resolution at startup, in
+order: `DSH_DEV_ROOT`, the `harnessDevRoot` field of
+`~/.dsh-desktop/config.json`, a walk-up from the executable (or portable
+extraction) directory, then `~/deepseek-harness` and `~/deepseek-harness-dev`.
+Every candidate must hold `packages/examples/jsonrpc-demo/src/bin.ts`; when
+none matches, the runtime-error banner names the exact paths tried. The
+runtime itself spawns under system Node (≥ 22.19; override with
+`DSH_RUNTIME_NODE`) — Electron's embedded Node is too old for the current
+runtime — so a packaged machine needs Node and a `pnpm install`-ed checkout.
+
 ## Pages & Features
 
 The sidebar nav groups the 14 pages into three bands: **observation**
