@@ -295,6 +295,7 @@
     { "path": "./packages/supervisor/supervisor-routing-policy" },
     { "path": "./packages/supervisor/supervisor-project-host" },
     { "path": "./packages/supervisor/supervisor-executor-subagent" },
+    { "path": "./packages/supervisor/supervisor-executor-inprocess" },
     { "path": "./packages/supervisor/supervisor-orchestrator" },
     { "path": "./packages/supervisor/supervisor-memory" },
     { "path": "./packages/supervisor/tool-supervisor" },

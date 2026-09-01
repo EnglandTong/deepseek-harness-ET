@@ -68,6 +68,7 @@
     "@deepseek-ai/dsh-session-title-first-prompt-llm": "workspace:*",
     "@deepseek-ai/dsh-settings-file": "workspace:*",
     "@deepseek-ai/dsh-supervisor": "workspace:*",
+    "@deepseek-ai/dsh-supervisor-executor-inprocess": "workspace:*",
     "@deepseek-ai/dsh-supervisor-executor-subagent": "workspace:*",
     "@deepseek-ai/dsh-supervisor-memory": "workspace:*",
     "@deepseek-ai/dsh-supervisor-orchestrator": "workspace:*",

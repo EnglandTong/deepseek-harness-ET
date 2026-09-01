@@ -10,8 +10,11 @@ export const name = 'supervisor-executor-subagent-invariant'
 export const inject = ['invariants']
 
 /**
- * Executor ownership is checked at dispatch and host lease settlement. There
- * is no independent durable store for this package to scan.
+ * No runtime invariant: executor ownership has no durable store for this
+ * package to scan. The data relation it depends on — the registered provider
+ * equals the admitted executor, and the published child equals the reserved
+ * identity — is enforced at every dispatch (NO_EXECUTOR, CHILD_ID_MISMATCH)
+ * and at host lease settlement, so a scan would only re-read live dispatch state.
  */
 const install: InvariantInstaller = () => {}
 

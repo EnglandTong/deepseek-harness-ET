@@ -12,6 +12,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { foldConsumedWork } from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentHandle } from '@deepseek-ai/dsh-agent'
@@ -68,6 +69,20 @@ function toStopReason(reason: TurnEndReason | undefined): SubagentStopReason {
 export interface InProcessRunOptions {
   /** Completed-turn seed for fork, or undefined for a fresh spawn. */
   readonly seed?: SessionEvent[]
+  /**
+   * Caller-reserved child identity for adapters that own admission before the
+   * run starts (e.g. the Personal Supervisor executor bridge, whose host gate
+   * needs the exact child id before provider work). Omission preserves the
+   * driver's UUID allocation. The id must not already exist; `agents.create`
+   * rejects a collision.
+   */
+  readonly reservedChildId?: SessionId
+  /**
+   * Child workspace override. Defaults to the delegating parent's `cwd`;
+   * the supervisor bridge passes the routed project's real path, which differs
+   * from the controller session's own workspace. Must be an absolute path.
+   */
+  readonly cwd?: string
 }
 
 /** Error used when cancellation wins before the child publication boundary. */
@@ -105,12 +120,17 @@ export async function startInProcessRun(
 ): Promise<SubagentRun> {
   assertSubagentMaxDepth(request.maxDepth)
   if (request.signal.aborted) throw prePublicationAbort()
+  if (options.cwd !== undefined && !isAbsolute(options.cwd)) {
+    throw new Error('in-process subagent cwd override must be an absolute path')
+  }
   const parent = request.parent
   const childDepth = resolveChildDepth(parent, request.maxDepth)
 
-  const childId = SessionId(randomUUID())
+  const childId = options.reservedChildId ?? SessionId(randomUUID())
   const seed = options.seed
   const activationBoundary = seed?.length ?? 0
+  const childMeta = childSessionMeta(parent, childDepth, activationBoundary)
+  const meta = options.cwd === undefined ? childMeta : { ...childMeta, cwd: options.cwd }
 
   // Capture before the first await: a later parent switch belongs to the
   // parent's future.
@@ -131,7 +151,7 @@ export async function startInProcessRun(
 
   const handle = await parent.ctx.agents.create({
     sessionId: childId,
-    meta: childSessionMeta(parent, childDepth, activationBoundary),
+    meta,
     ...seed !== undefined ? { seed } : {},
     agentOptions: resolveChildAgentOptions(parent, request.agentOptions, childDepth),
     signal: request.signal,

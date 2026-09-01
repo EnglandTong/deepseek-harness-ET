@@ -32,9 +32,9 @@ type TaskTone = 'active' | 'blocked' | 'review' | 'completed' | 'other'
 /** Read one immutable Host snapshot through React's external-store contract. */
 function useSupervisorState(client: SupervisorClient): SupervisorClientState {
   return useSyncExternalStore(
-    client.state.subscribe,
-    client.state.getSnapshot,
-    client.state.getSnapshot,
+    onStoreChange => client.state.subscribe(onStoreChange),
+    () => client.state.getSnapshot(),
+    () => client.state.getSnapshot(),
   )
 }
 
@@ -59,9 +59,8 @@ function dotState(tone: TaskTone): 'done' | 'warning' | 'ongoing' | 'error' {
 /** Localized status label for an extensible task status. */
 function statusLabel(status: string, t: TranslateNS<typeof NS>): string {
   const tone = taskTone(status)
-  return t(`status.${tone}` as Parameters<typeof t>[0])
+  return t(`status.${tone}`)
 }
-
 /** Actions made available by the Host state machine for a task. */
 function actionsFor(task: SupervisorTaskView): readonly SupervisorActionKind[] {
   const normalized = task.status.toLowerCase().replaceAll('_', '').replaceAll('-', '')
@@ -175,7 +174,7 @@ function TaskCard({
                 disabled={busy}
                 onClick={() => { execute(action) }}
               >
-                {busy ? t('task.actionBusy') : t(`task.${action}` as Parameters<typeof t>[0])}
+                {busy ? t('task.actionBusy') : t(`task.${action}`)}
               </Button>
             ))}
           </div>

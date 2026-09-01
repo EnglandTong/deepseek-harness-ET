@@ -1,0 +1,6 @@
+{
+  "writeAccess": false,
+  "childCwdIsProject": true,
+  "descriptorProvider": "supervisor-spawn",
+  "outputMarker": true
+}

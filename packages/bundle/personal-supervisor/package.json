@@ -18,6 +18,10 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./preset/supervisor/agent.cordis.yml": "./preset/supervisor/agent.cordis.yml",
     "./preset/supervisor/preset.yml": "./preset/supervisor/preset.yml",
@@ -27,6 +31,7 @@
   },
   "files": [
     "lib/index.js",
+    "lib/invariant.js",
     "cordis.patch.yml",
     "preset/supervisor/agent.cordis.yml",
     "preset/supervisor/preset.yml",
@@ -42,6 +47,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-persona": "workspace:^",
     "@deepseek-ai/dsh-supervisor": "workspace:^",
+    "@deepseek-ai/dsh-supervisor-executor-inprocess": "workspace:^",
     "@deepseek-ai/dsh-supervisor-executor-subagent": "workspace:^",
     "@deepseek-ai/dsh-supervisor-memory": "workspace:^",
     "@deepseek-ai/dsh-supervisor-api": "workspace:^",
@@ -53,7 +59,8 @@
     "@deepseek-ai/dsh-client-ui-supervisor": "workspace:^"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-invariants": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",

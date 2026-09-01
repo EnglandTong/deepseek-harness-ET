@@ -15,8 +15,9 @@ export const name = 'client-ui-supervisor-invariant'
 export const inject = ['invariants']
 
 /**
- * The dashboard is a Host projection. Its behavior is covered by client
- * interaction tests; no second client-side source of truth is installed here.
+ * No runtime invariant: the dashboard is a Host projection with no local
+ * state authority. Its behavior is covered by client interaction tests; no
+ * second client-side source of truth is installed here.
  */
 const install: InvariantInstaller = () => {}
 

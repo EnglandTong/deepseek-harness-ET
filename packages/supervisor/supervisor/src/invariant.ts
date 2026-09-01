@@ -1,5 +1,7 @@
 /** Runtime invariants for Supervisor projections. */
 
+import type { Context } from '@deepseek-ai/cordis'
+import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 import type { SupervisorProjection } from './fold.ts'
 
 /** Assert that a replay projection has unique, positive revisions and no duplicate map keys.
@@ -38,3 +40,18 @@ export function assertSupervisorProjection(projection: SupervisorProjection): vo
 function assertRevision(key: string, revision: number): void {
   if (!Number.isSafeInteger(revision) || revision < 1) throw new Error(`Supervisor ${key} has an invalid revision`)
 }
+
+/** Cordis companion plugin name. */
+export const name = 'supervisor-invariant'
+/** Invariant service required to install the companion. */
+export const inject = ['invariants']
+
+/**
+ * No runtime invariant: the projection checks above run exactly at the fold
+ * and snapshot-apply boundaries where the data is assembled, and the public
+ * service owns no scheduled background state for a scanner to re-read.
+ */
+const install: InvariantInstaller = () => {}
+
+/** Register the package invariant companion. @param ctx - invariant context. @returns disposer. */
+export const apply = (ctx: Context): Promise<() => void> => Promise.resolve(ctx.invariants.register('@deepseek-ai/dsh-supervisor', install))

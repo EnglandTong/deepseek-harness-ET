@@ -795,9 +795,29 @@
         "@deepseek-ai/dsh-code-runtime-worker-thread"
       ]
     },
+    "packages/bundle/personal-supervisor": {
+      "ignoreDependencies": [
+        "@deepseek-ai/.+"
+      ]
+    },
     "packages/bundle/web-app": {
       "ignoreDependencies": [
         "@deepseek-ai/.+"
+      ]
+    },
+    "packages/client/ui-supervisor": {
+      "entry": [
+        "tests/**/*.client.spec.tsx"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tests/**/*.tsx"
+      ]
+    },
+    "packages/supervisor/supervisor-api": {
+      "project": [
+        "src/**/*.ts"
       ]
     }
   }

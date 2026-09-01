@@ -11,9 +11,9 @@ export const name = 'supervisor-session-invariant'
 export const inject = ['invariants']
 
 /**
- * The live singleton relation is checked by the service itself at startup and
- * SessionStore checks duplicate live ids; no additional cross-service fold is
- * owned by this stateless companion.
+ * No runtime invariant: the live singleton relation is checked by the service
+ * itself at startup and SessionStore checks duplicate live ids; no additional
+ * cross-service fold is owned by this stateless companion.
  */
 const install: InvariantInstaller = () => {}
 

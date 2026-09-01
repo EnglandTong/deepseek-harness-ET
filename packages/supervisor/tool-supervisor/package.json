@@ -25,7 +25,8 @@
     "@deepseek-ai/dsh-supervisor": "workspace:^",
     "@deepseek-ai/dsh-supervisor-orchestrator": "workspace:^",
     "@deepseek-ai/dsh-supervisor-project-registry": "workspace:^",
-    "@deepseek-ai/dsh-supervisor-session": "workspace:^"
+    "@deepseek-ai/dsh-supervisor-session": "workspace:^",
+    "@deepseek-ai/dsh-invariants": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",

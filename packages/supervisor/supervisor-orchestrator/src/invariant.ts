@@ -26,6 +26,11 @@ export function assertOrchestrationRun(run: SupervisorRunResult): void {
 export const name = 'supervisor-orchestrator-invariant'
 /** Invariant service required by this companion. */
 export const inject = ['invariants']
+/**
+ * No runtime invariant: orchestration state is checked at every mutation by
+ * the assertion helpers above and by the revision-safe publish path; the
+ * package owns no scheduled store for a scanner to re-read.
+ */
 const install: InvariantInstaller = () => {}
 /** Register the companion invariant plugin. @param ctx - invariant context. @returns disposer. */
 export const apply = (ctx: import('@deepseek-ai/cordis').Context): Promise<() => void> => Promise.resolve(ctx.invariants.register('@deepseek-ai/dsh-supervisor-orchestrator', install))

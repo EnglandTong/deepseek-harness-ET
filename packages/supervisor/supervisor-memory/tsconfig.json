@@ -5,6 +5,7 @@
   "references": [
     { "path": "../supervisor" },
     { "path": "../supervisor-project-state" },
-    { "path": "../supervisor-session" }
+    { "path": "../supervisor-session" },
+    { "path": "../../runtime-diagnostics/invariants" }
   ]
 }

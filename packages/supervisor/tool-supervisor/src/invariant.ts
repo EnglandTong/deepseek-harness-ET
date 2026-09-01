@@ -30,6 +30,13 @@ export function assertSupervisorInteractionNotification(notification: Supervisor
   if (notification.id.trim().length === 0) throw new TypeError('Supervisor notification id must not be empty')
 }
 
+/**
+ * No runtime invariant: the durable notification event and the singleton
+ * Session log are the authorities this package reads and appends to. The
+ * assertion helpers above gate the two append boundaries (intake relay and
+ * notification projection) at their call sites, and unread acknowledgement is
+ * deliberately process-local with no scheduled state to scan.
+ */
 const install: InvariantInstaller = () => {}
 
 /** Register interaction checks with the configured invariant registry. */

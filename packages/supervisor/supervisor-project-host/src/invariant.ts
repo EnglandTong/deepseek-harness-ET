@@ -11,9 +11,10 @@ export const name = 'supervisor-project-host-invariant'
 export const inject = ['invariants']
 
 /**
- * Admission authority is enforced at the one in-process lease book. Durable
- * replay belongs to the Supervisor projection, while the child provider owns
- * liveness proof; this package has no independent global relationship to scan.
+ * No runtime invariant: admission authority is enforced at the one in-process
+ * lease book. Durable replay belongs to the Supervisor projection, while the
+ * child provider owns liveness proof; this package has no independent global
+ * relationship to scan.
  */
 const install: InvariantInstaller = () => {}
 

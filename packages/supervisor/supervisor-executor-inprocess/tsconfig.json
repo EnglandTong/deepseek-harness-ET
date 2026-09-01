@@ -5,10 +5,13 @@
   "references": [
     { "path": "../../../vendor/cosmokit" },
     { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
     { "path": "../../core/session" },
-    { "path": "../../session/session-persistence" },
-    { "path": "../../settings/settings" },
+    { "path": "../../subagent/subagent" },
+    { "path": "../../subagent/subagent-in-process-driver" },
     { "path": "../supervisor" },
+    { "path": "../supervisor-executor-subagent" },
+    { "path": "../supervisor-routing-policy" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]
 }

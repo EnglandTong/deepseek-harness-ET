@@ -1,9 +1,13 @@
 # Safe starting policy for Personal Supervisor.
 #
-# Copy this document into a user-owned policy file and replace the executor and
-# provider identifiers with installed providers. The bundle never embeds a
-# credential, login value, or user's model preference. Approval and read-only
-# permission are intentionally conservative until the owner changes them.
+# Copy this document into a user-owned policy file and adjust the route to the
+# deployment's LLM provider and model names (`provider:`/`model:` below). The
+# executor names the in-process adapter registered by the personal-supervisor
+# bundle row `supervisor-executor-inprocess`; its `providers:` allowlist must
+# include the same provider name or dispatch fails loud. The bundle never
+# embeds a credential, login value, or user's model preference. Approval and
+# read-only permission are intentionally conservative until the owner changes
+# them.
 
 version: 1
 defaults:
@@ -15,8 +19,9 @@ routes:
   - id: supervised-read
     domain: [software]
     taskType: [status, inspect, review]
-    executor: configured-executor
-    provider: configured-provider
+    executor: supervisor-spawn
+    provider: deepseek
+    model: deepseek-chat
     costTier: unknown
     permissionCeiling: read
     approval: confirm

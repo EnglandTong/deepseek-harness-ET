@@ -2,5 +2,6 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
   "include": ["src"],
-  "references": [{ "path": "../supervisor" }]
+  "references": [
+    { "path": "../../runtime-diagnostics/invariants" },{ "path": "../supervisor" }]
 }

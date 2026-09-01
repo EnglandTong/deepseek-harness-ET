@@ -33,6 +33,16 @@
     - id: supervisor-executors
       name: '@deepseek-ai/dsh-supervisor-executor-subagent'
 
+    # The in-process model executor adapter. It stays dormant (no route
+    # providers allowlisted) until the owner names providers here or in a home
+    # patch; routing to it still fails loud when the allowlist is empty.
+    - id: supervisor-executor-inprocess
+      name: '@deepseek-ai/dsh-supervisor-executor-inprocess'
+      config:
+        providerName: supervisor-spawn
+        providers: []
+        permissions: [none, read]
+
     # Orchestration is bounded and revision-safe. A completed child remains
     # ReadyForReview until an owner explicitly records the review result.
     - id: supervisor-orchestrator

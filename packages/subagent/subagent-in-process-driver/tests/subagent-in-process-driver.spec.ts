@@ -1,4 +1,4 @@
-import { CallId, createUserMessage } from '@deepseek-ai/dsh-llm'
+﻿import { CallId, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { type Agent, type AgentOptions } from '@deepseek-ai/dsh-agent'
@@ -80,6 +80,38 @@ describe('startInProcessRun', () => {
     expect(child.session.header.cwd).toBe('/workspace')
     await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
     await run.dispose()
+  })
+
+  it('honors a caller-reserved child identity and the parent cwd by default', async () => {
+    const { ctx, parent } = await setup([textResponse('driver answer')])
+    const reserved = SessionId('supervisor-reserved-child')
+    const run = await startInProcessRun(request(parent), { reservedChildId: reserved })
+    expect(run.id).toBe(reserved)
+    expect(ctx.agents.get(reserved)).toBeDefined()
+    await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
+    await run.dispose()
+    expect(ctx.agents.get(reserved)).toBeUndefined()
+  })
+
+  it('overrides the child workspace while keeping the parent lineage intact', async () => {
+    const { ctx } = await setup([textResponse('driver answer')])
+    const parent = ctx.agentLoop.create(SessionId('workspace-parent'), {}, { cwd: '/workspace' })
+    const run = await startInProcessRun({
+      ...request(parent),
+      agentOptions: { provider: 'mock', model: 'mock' },
+    }, { cwd: '/projects/alpha' })
+    const child = ctx.agents.get(run.id)!
+    expect(child.session.header.cwd).toBe('/projects/alpha')
+    expect(child.session.header.parentSession).toBe(parent.session.header.id)
+    await expect(run.result).resolves.toMatchObject({ stopReason: 'completed' })
+    await run.dispose()
+  })
+  it('rejects a relative cwd override before publication', async () => {
+    const { ctx, parent } = await setup([])
+    const beforeAgents = ctx.agents.list().length
+    await expect(startInProcessRun(request(parent), { cwd: 'relative/path' }))
+      .rejects.toThrow('cwd override must be an absolute path')
+    expect(ctx.agents.list()).toHaveLength(beforeAgents)
   })
 
   it('reports a prompt a pre-step rejection discarded as refusal, not completion', async () => {

@@ -1,5 +1,7 @@
 /** Runtime checks for memory checkpoints and prompt-facing summaries. */
 
+import type { Context } from '@deepseek-ai/cordis'
+import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 import type { SupervisorMemoryCheckpoint, SupervisorMemoryProjection, SupervisorRollingSummary } from './types.ts'
 
 /** Checkpoint value as read from persistence, before the format version is validated. */
@@ -49,3 +51,19 @@ export function assertSupervisorMemoryCheckpoint(checkpoint: PersistedSupervisor
     seen.add(id)
   }
 }
+
+/** Cordis companion plugin name. */
+export const name = 'supervisor-memory-invariant'
+/** Invariant service required to install the companion. */
+export const inject = ['invariants']
+
+/**
+ * No runtime invariant: the bounded briefs and summaries are checked by the
+ * assertion helpers above whenever they are folded or emitted, and memory
+ * owns no scheduled background state beyond its persisted checkpoint, which
+ * is validated on load by assertSupervisorMemoryCheckpoint.
+ */
+const install: InvariantInstaller = () => {}
+
+/** Register the package invariant companion. @param ctx - invariant context. @returns disposer. */
+export const apply = (ctx: Context): Promise<() => void> => Promise.resolve(ctx.invariants.register('@deepseek-ai/dsh-supervisor-memory', install))

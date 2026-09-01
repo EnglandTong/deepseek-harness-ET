@@ -1,0 +1,11 @@
+{"kind":"command","input":"/supervisor_register_project <cwd>/project-alpha Alpha","output":"Registered Alpha (id1) at <cwd>/project-alpha."}
+{"kind":"task-event","status":"Captured","revision":1}
+{"kind":"task-event","status":"Classified","revision":2}
+{"kind":"task-event","status":"Ready","revision":3}
+{"kind":"task-event","status":"Dispatched","revision":4}
+{"kind":"task-event","status":"Running","revision":5}
+{"kind":"command","input":"/supervisor_capture id1 Summarize the ledger :: Collect the current status of every registered project. :: Report the summary for owner review","output":"Captured supervisor-task:id2 [Running] Summarize the ledger\nproject=id1; revision=5; route=supervisor-spawn; approval=auto"}
+{"kind":"task-event","status":"ReadyForReview","revision":6}
+{"kind":"settled","task":"supervisor-task:id2","status":"ReadyForReview","revision":6}
+{"kind":"run-links","links":[{"revision":1,"runId":"supervisor-run:id3","taskId":"supervisor-task:id2","projectId":"id1","hostSessionId":"supervisor-project-host:id1","childSessionId":"id4","executor":"supervisor-spawn","model":"replay-child","writeAccess":false,"hostCwd":"<cwd>/project-alpha"}]}
+{"kind":"final","task":"supervisor-task:id2","status":"ReadyForReview","revision":6}

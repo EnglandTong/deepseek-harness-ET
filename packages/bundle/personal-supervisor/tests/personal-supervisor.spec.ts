@@ -56,6 +56,7 @@ describe('@deepseek-ai/dsh-personal-supervisor bundle', () => {
       'supervisor-project-registry',
       'supervisor-project-host',
       'supervisor-executors',
+      'supervisor-executor-inprocess',
       'supervisor-orchestrator',
       'supervisor-memory',
       'supervisor-interaction',
