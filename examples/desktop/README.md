@@ -82,11 +82,18 @@ each profile.
 ## Windows double-click packaging
 
 `pnpm dist` (or `pnpm dist:dir` for an unpacked smoke build) packages the
-shell with [electron-builder](https://www.electron-builder.com/) into a
-`dist/` NSIS installer (`DSH Desktop Setup <version>.exe`, desktop +
-Start-menu shortcuts) and a portable single-file exe
-(`DSH-Desktop-Portable-<version>.exe`). Both open like any Windows app —
-no terminal, no `pnpm start`.
+shell with [electron-builder](https://www.electron-builder.com/) into
+`dist/`:
+
+- **NSIS installer** — `DSH Desktop Setup <version>.exe`, with desktop and
+  Start-menu shortcuts.
+- **Portable exe** — `DSH-Desktop-Portable-<version>.exe`, a single file
+  that runs from wherever it is placed.
+
+Both open like any Windows app — no terminal, no `pnpm start`. The
+portable exe resolves its runtime checkout by walking up from its own
+directory, so dropping it inside (or under) a deepseek-harness checkout
+needs zero configuration.
 
 The packaged app still boots the runtime from a deepseek-harness checkout
 on disk (this is the local-checkout packaging stage; a fully self-contained

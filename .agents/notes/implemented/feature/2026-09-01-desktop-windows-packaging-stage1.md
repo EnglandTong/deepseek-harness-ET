@@ -70,8 +70,11 @@ unconditionally).
   artifact-server electron import) unchanged from the base branch.
 - `node test/smoke-runtime.js stdio`: real jsonrpc-demo boot + one turn
   completes with `reason.kind === 'completed'` via the mock adapter.
+- `pnpm dist` produces `dist/DSH Desktop Setup 0.0.1.exe` (NSIS) and
+  `dist/DSH-Desktop-Portable-0.0.1.exe` (portable).
 - Packaged cold boot on Windows: `pnpm dist:dir`, launch `dist/win-unpacked/DSH
   Desktop.exe` with an isolated `DSH_DESKTOP_HOME` and no `DSH_DEV_ROOT`;
   the runtime child appears as `node.exe --import file:///…tsx… bin.ts
   …config/echo-jsonrpc.yml` with the checkout-resolved paths and stays
-  alive.
+  alive. The portable exe repeats the same boot from its own directory
+  (`PORTABLE_EXECUTABLE_DIR` walk-up finds the checkout), also verified.
