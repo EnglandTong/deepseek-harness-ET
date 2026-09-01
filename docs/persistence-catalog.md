@@ -710,6 +710,74 @@ Source: [`packages/core/session/src/types.ts:254`](../packages/core/session/src/
 
 Source: [`packages/subagent/subagent/src/descriptor.ts:37`](../packages/subagent/subagent/src/descriptor.ts)
 
+### `supervisor/*`
+
+<a id="supervisoridentity--log-only"></a>
+
+#### `supervisor/identity` — log-only
+
+```ts persistence-catalog
+/** One immutable identity envelope written by the singleton provider. */
+'supervisor/identity': Omit<SupervisorIdentityEvent, 'type'>
+```
+
+Source: [`packages/supervisor/supervisor-session/src/session-events.ts:15`](../packages/supervisor/supervisor-session/src/session-events.ts)
+
+<a id="supervisornotification--log-only"></a>
+
+#### `supervisor/notification` — log-only
+
+```ts persistence-catalog
+/** User-facing notification emitted by the orchestrator. */
+'supervisor/notification': Omit<SupervisorNotificationEvent, 'type'>
+```
+
+Source: [`packages/supervisor/supervisor-session/src/session-events.ts:25`](../packages/supervisor/supervisor-session/src/session-events.ts)
+
+<a id="supervisorpolicy-applied--log-only"></a>
+
+#### `supervisor/policy-applied` — log-only
+
+```ts persistence-catalog
+/** Applied routing policy evidence emitted by the orchestrator. */
+'supervisor/policy-applied': Omit<SupervisorPolicyAppliedEvent, 'type'>
+```
+
+Source: [`packages/supervisor/supervisor-session/src/session-events.ts:23`](../packages/supervisor/supervisor-session/src/session-events.ts)
+
+<a id="supervisorproject--log-only"></a>
+
+#### `supervisor/project` — log-only
+
+```ts persistence-catalog
+/** Versioned project snapshot emitted by the project registry. */
+'supervisor/project': Omit<SupervisorProjectEvent, 'type'>
+```
+
+Source: [`packages/supervisor/supervisor-session/src/session-events.ts:17`](../packages/supervisor/supervisor-session/src/session-events.ts)
+
+<a id="supervisorrun-linked--log-only"></a>
+
+#### `supervisor/run-linked` — log-only
+
+```ts persistence-catalog
+/** Task/run/child-session association emitted by the project host. */
+'supervisor/run-linked': Omit<SupervisorRunLinkedEvent, 'type'>
+```
+
+Source: [`packages/supervisor/supervisor-session/src/session-events.ts:21`](../packages/supervisor/supervisor-session/src/session-events.ts)
+
+<a id="supervisortask--log-only"></a>
+
+#### `supervisor/task` — log-only
+
+```ts persistence-catalog
+/** Versioned task snapshot emitted by the orchestrator. */
+'supervisor/task': Omit<SupervisorTaskEvent, 'type'>
+```
+
+Source: [`packages/supervisor/supervisor-session/src/session-events.ts:19`](../packages/supervisor/supervisor-session/src/session-events.ts)
+
 ### `team/*`
 
 <a id="teammember--log-only"></a>

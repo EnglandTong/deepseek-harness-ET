@@ -15,6 +15,7 @@ import type { CredentialsApi } from './credentials.ts'
 import type { LlmApi } from './llm.ts'
 import type { SubagentsApi } from './subagents.ts'
 import type { RpcResponse } from './rpc.ts'
+import type { SupervisorApi } from './supervisor.ts'
 
 /**
  * Method name → method signature. Signatures are the single source of truth; payload/value
@@ -74,6 +75,13 @@ export interface RpcMethodMap {
   'llm.providers': LlmApi['providers']
   'llm.models': LlmApi['models']
   'llm.discoverModels': LlmApi['discoverModels']
+  'supervisor.identity': SupervisorApi['identity']
+  'supervisor.projects': SupervisorApi['projects']
+  'supervisor.tasks': SupervisorApi['tasks']
+  'supervisor.runs': SupervisorApi['runs']
+  'supervisor.notifications': SupervisorApi['notifications']
+  'supervisor.childSession': SupervisorApi['childSession']
+  'supervisor.action': SupervisorApi['action']
 }
 
 /** Business request payload of method K (reaches through the RpcRequest narrow form to payload). */

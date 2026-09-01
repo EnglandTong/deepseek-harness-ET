@@ -40,7 +40,9 @@ import type {
   ModelCatalogFailure, ModelProviderGroup,
   ModelReasoning, MuxFrame, PromptContentPart, QuestionResponsePayload, SessionListMetadata, SessionProjectionsBlock, SessionSearchItem,
   QueuedInboxItem, SessionSummary, SettingsNamespaceView, SubagentAddress, JobView, ToolEventView,
-  WorkspaceId, WorkspaceView,
+  WorkspaceId, WorkspaceView, SupervisorActionRequest, SupervisorActionReceipt,
+  SupervisorIdentityView, SupervisorProjectView, SupervisorTaskView, SupervisorRunView,
+  SupervisorNotificationView, SupervisorChildSessionView,
 } from './api/index.ts'
 import {
   DEFAULT_SESSION_LOG_COMPRESSION_LEVEL,
@@ -109,6 +111,7 @@ import {
   inspectApiRemoteSession,
 } from '@deepseek-ai/dsh-api-remotes'
 import { canOpenNativePath, openNativePath, openNativeTextFile } from './native-path-opener.ts'
+import { withSupervisorVersion } from './api/supervisor.schema.ts'
 
 /** Page size when history is called without maxMessages. */
 const DEFAULT_MAX_MESSAGES = 50
@@ -612,6 +615,26 @@ export interface ApiProxyDefaults {
    * falls back to platform detection ({@link canOpenNativePath}).
    */
   canOpenPath?: () => boolean
+  /** Optional Supervisor read/control port mounted by the Personal Supervisor bundle. */
+  supervisor?: SupervisorApiProvider
+}
+
+/** Host-owned read/control port supplied by the Supervisor composition. */
+export interface SupervisorApiProvider {
+  /** Return the complete singleton identity snapshot. */
+  identity(): SupervisorIdentityView
+  /** Return current project snapshots. */
+  listProjects(): readonly SupervisorProjectView[]
+  /** Return current task snapshots. */
+  listTasks(): readonly SupervisorTaskView[]
+  /** Return current run links. */
+  listRuns(): readonly SupervisorRunView[]
+  /** Return current notifications. */
+  listNotifications(): readonly SupervisorNotificationView[]
+  /** Return one read-only child session link. */
+  childSession(taskId: string, runId?: string): SupervisorChildSessionView | undefined
+  /** Apply one user action after checking the expected task revision. */
+  action(request: SupervisorActionRequest): Promise<SupervisorActionReceipt>
 }
 
 /** The tool/call payload fields the presenter path reads. */
@@ -1053,6 +1076,13 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     ?? DEFAULT_SESSION_LOG_COMPRESSION_LEVEL
   const coldBlankProbeMaxBytes = defaults.coldBlankProbeMaxBytes
     ?? DEFAULT_COLD_BLANK_PROBE_MAX_BYTES
+  // The Supervisor is optional: ordinary profiles continue to serve all
+  // existing API domains. A bundle supplies this read/control port through
+  // defaults so this gateway does not own Supervisor state or lifecycle.
+  const supervisor = defaults.supervisor ?? (ctx.get('supervisorApi') as SupervisorApiProvider | undefined)
+  const supervisorUnavailable = (reason: string): RpcError => ({
+    code: 'supervisor-unavailable', message: `Supervisor API is unavailable: ${reason}`, details: { reason },
+  })
   /** The seed model each create/resume declares; re-read so it never goes stale. */
   const agentOptions = (): AgentOptions => {
     const { provider, model } = defaults.defaultModelSelection()
@@ -3335,6 +3365,90 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
             code: 'model-discovery-failed',
             message: error instanceof Error ? error.message : String(error),
             details: { settingsNs, ...baseURL === undefined ? {} : { baseURL } },
+          })
+        }
+      },
+    },
+
+    supervisor: {
+      identity(request) {
+        if (supervisor === undefined) return Promise.resolve(err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted')))
+        return Promise.resolve(ok(request, withSupervisorVersion(supervisor.identity())))
+      },
+
+      projects(request) {
+        if (supervisor === undefined) return Promise.resolve(err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted')))
+        const status = request.payload.status
+        const projects = supervisor.listProjects().filter(project => status === undefined || project.status === status)
+        return Promise.resolve(ok(request, withSupervisorVersion({ projects: projects.map(project => ({ ...project })) })))
+      },
+
+      tasks(request) {
+        if (supervisor === undefined) return Promise.resolve(err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted')))
+        const { projectId, statuses } = request.payload
+        const accepted = statuses === undefined ? undefined : new Set(statuses)
+        const tasks = supervisor.listTasks().filter(task =>
+          (projectId === undefined || task.projectId === projectId)
+          && (accepted === undefined || accepted.has(task.status)))
+        return Promise.resolve(ok(request, withSupervisorVersion({ tasks: tasks.map(task => ({ ...task })) })))
+      },
+
+      runs(request) {
+        if (supervisor === undefined) return Promise.resolve(err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted')))
+        const taskId = request.payload.taskId
+        const runs = supervisor.listRuns().filter(run => taskId === undefined || run.taskId === taskId)
+        return Promise.resolve(ok(request, withSupervisorVersion({ runs: runs.map(run => ({ ...run })) })))
+      },
+
+      notifications(request) {
+        if (supervisor === undefined) return Promise.resolve(err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted')))
+        const { unreadOnly, afterRevision } = request.payload
+        const notifications = supervisor.listNotifications().filter(notification =>
+          (unreadOnly !== true || notification.unread)
+          && (afterRevision === undefined || notification.revision > afterRevision))
+        return Promise.resolve(ok(request, withSupervisorVersion({
+          notifications: notifications.map(notification => ({ ...notification })),
+        })))
+      },
+
+      childSession(request) {
+        if (supervisor === undefined) return Promise.resolve(err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted')))
+        const child = supervisor.childSession(request.payload.taskId, request.payload.runId)
+        if (child === undefined) {
+          return Promise.resolve(err(request, {
+            code: 'supervisor-invalid-action',
+            message: `No child session is linked to task "${request.payload.taskId}"`,
+            details: { taskId: request.payload.taskId, action: 'childSession', reason: 'run-not-found' },
+          }))
+        }
+        return Promise.resolve(ok(request, withSupervisorVersion({ ...child })))
+      },
+
+      async action(request) {
+        if (supervisor === undefined) return err(request, supervisorUnavailable('the Personal Supervisor bundle is not mounted'))
+        try {
+          return ok(request, withSupervisorVersion(await supervisor.action(request.payload)))
+        } catch (error: unknown) {
+          const candidate = error as { code?: unknown; expected?: unknown; actual?: unknown; taskId?: unknown; action?: unknown }
+          if (candidate.code === 'SUPERVISOR_REVISION_CONFLICT'
+            && typeof candidate.expected === 'number' && typeof candidate.actual === 'number') {
+            return err(request, {
+              code: 'supervisor-conflict',
+              message: error instanceof Error ? error.message : 'Supervisor task revision conflict',
+              details: { taskId: request.payload.taskId, expected: candidate.expected, actual: candidate.actual },
+            })
+          }
+          if (candidate.code === 'SUPERVISOR_INVALID_ACTION') {
+            return err(request, {
+              code: 'supervisor-invalid-action',
+              message: error instanceof Error ? error.message : 'Supervisor action rejected',
+              details: { taskId: request.payload.taskId, action: request.payload.action, reason: 'policy-rejected' },
+            })
+          }
+          return err(request, {
+            code: 'internal',
+            message: `Supervisor action failed: ${error instanceof Error ? error.message : String(error)}`,
+            details: {},
           })
         }
       },

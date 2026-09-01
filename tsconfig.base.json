@@ -283,6 +283,7 @@
         "./packages/mcp/*/src",
         "./packages/identity/*/src",
         "./packages/test-support/*/src",
+        "./packages/supervisor/*/src",
         "./packages/host/*/src",
         "./packages/client/*/src"
       ]

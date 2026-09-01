@@ -70,6 +70,15 @@ import {
   subagentListRequestSchema,
   subagentPromptRequestSchema,
 } from '../api/subagents.schema.ts'
+import {
+  supervisorActionRequestSchema,
+  supervisorChildSessionRequestSchema,
+  supervisorIdentityRequestSchema,
+  supervisorNotificationsRequestSchema,
+  supervisorProjectsRequestSchema,
+  supervisorRunsRequestSchema,
+  supervisorTasksRequestSchema,
+} from '../api/supervisor.schema.ts'
 
 /**
  * Unary dispatch table, keyed by (and compiler-locked to) RpcMethodMap: a map row without a
@@ -140,6 +149,13 @@ const UNARY_ROUTES: UnaryRoutes = {
   'llm.providers': { schema: llmProvidersRequestSchema, invoke: (api, r) => api.llm.providers(r) },
   'llm.models': { schema: llmModelsRequestSchema, invoke: (api, r) => api.llm.models(r) },
   'llm.discoverModels': { schema: llmDiscoverModelsRequestSchema, invoke: (api, r, signal) => api.llm.discoverModels(r, signal) },
+  'supervisor.identity': { schema: supervisorIdentityRequestSchema, invoke: (api, r) => api.supervisor.identity(r) },
+  'supervisor.projects': { schema: supervisorProjectsRequestSchema, invoke: (api, r) => api.supervisor.projects(r) },
+  'supervisor.tasks': { schema: supervisorTasksRequestSchema, invoke: (api, r) => api.supervisor.tasks(r) },
+  'supervisor.runs': { schema: supervisorRunsRequestSchema, invoke: (api, r) => api.supervisor.runs(r) },
+  'supervisor.notifications': { schema: supervisorNotificationsRequestSchema, invoke: (api, r) => api.supervisor.notifications(r) },
+  'supervisor.childSession': { schema: supervisorChildSessionRequestSchema, invoke: (api, r) => api.supervisor.childSession(r) },
+  'supervisor.action': { schema: supervisorActionRequestSchema, invoke: (api, r) => api.supervisor.action(r) },
 }
 
 /** Route lookup that narrows an arbitrary path segment to a map key (single cast point for the string→key refinement). */
@@ -174,7 +190,6 @@ function fullResponse(narrow: RpcResponse<unknown>): Response {
  */
 // K appears once in the signature but ties the UNARY_ROUTES[K] row lookup to its own
 // schema/invoke pairing; a union parameter degrades the row to an uninvokable intersection.
-// oxlint-disable-next-line typescript/no-unnecessary-type-parameters
 async function handleUnary<K extends keyof RpcMethodMap>(
   api: ApiProxy, method: K, message: ClientRequest, signal: AbortSignal,
 ): Promise<Response> {

@@ -4,6 +4,8 @@
 
 所有客户端共用的 API 网关由三部分组成：TypeScript API 约定（`src/api/`，不依赖 Node，可从浏览器导入）、fetch 载体对（`src/fetch/`：宿主侧的 `toFetchHandler`，以及客户端侧的 `AbstractApiClient` 与平台子类）和宿主侧实现（`src/api-proxy.ts`：`createApiProxy` 加上默认导出的 `ApiProxyService` 网关插件，其配置为 `{nativeOpen?, sessionExportCompressionLevel?, coldBlankProbeMaxBytes?}`，提供 `ctx.apiProxy`）。该包不注册任何路由；HTTP 等载体自行包装 `ctx.apiProxy`。随发行版交付的 Web 组合位于 [`packages/bundle/web-app/cordis.patch.yml`](../../bundle/web-app/cordis.patch.yml)，其默认 Agent（智能体）模型选择属于 base 组合包中的 [`@deepseek-ai/dsh-agent-default-model`](../../core/agent-default-model/README.md)。
 
+可选的 `supervisor.*` 领域通过同一载体暴露 Personal Supervisor 身份、项目／任务／运行快照、关键通知、只读子会话引用以及比较并交换的用户操作。响应携带 `version: 1`；每个任务操作都包含 `expectedRevision`，revision 过期的写入返回 `supervisor-conflict`。网关从 Supervisor bundle 获取读取／控制端口，因此本包不拥有编排状态。未挂载该端口的 profile 返回 `supervisor-unavailable`，其余 API 领域照常可用。子会话引用一律设置 `readOnly: true`；该领域从不提供 transcript 修改。投影只服务于可信客户端——不暴露隐藏推理、原始 stderr、凭据或项目文件操作，模型可见状态仍通过 Host Session 日志与工具进入。
+
 ## 共享 Agent 默认值（`agent-default-model` Settings 分节）
 
 `ApiProxyService` 消费 `ctx.agentDefaultModel`；它不持有提供方／模型配置或 Settings 分节。共享服务在 `agent-default-model` 下注册 `{provider, model, reasoningEffort?}`：base 组合包的组合条目是底层，`settings.yaml` 把用户选择叠加其上。
@@ -70,7 +72,7 @@ Workspace 列表与 Session 列表是相互独立的重连基线。`workspace.cr
 
 #### KV Cache 影响
 
-无；该包既不组装也不发送提供方请求。
+无直接影响。API 不修改 prompt 前缀或模型选择。
 
 ## 已知限制与暂缓事项
 

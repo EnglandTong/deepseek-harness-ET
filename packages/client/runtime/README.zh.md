@@ -80,6 +80,10 @@ reason 为 `max-tokens` 的 `turn/end` 会在该轮位置投影出一个 `turn-m
 
 每个常驻 `Session` 都拥有一个 `modelSelection` 快照，其中包含当前模型选择、按提供方分组的目录、逐提供方失败记录，以及 `idle`／`loading`／`ready`／`selecting`／`error` 状态。历史记录会建立或刷新当前模型选择，打开选择器会刷新目录；选择失败会保留上一次模型选择和可用分组。目录与选择操作共用单调递增的代次，因此较旧响应无法覆盖较新的模型选择。重连重建会恢复 Host 报告的模型选择，同时不替换未变化的选择子结构。
 
+## Personal Supervisor 投影
+
+`SupervisorRuntime` 为可选的 Personal Supervisor API 持有一个可观察客户端投影。`refresh()` 从 Host 响应替换身份、项目、任务、运行记录和关键通知；`action()` 发送任务 revision 的 compare-and-set，并在确认后刷新。错误保留在投影中供界面显示，运行时不会依据失败请求猜测状态。`childSession()` 返回 Host 签发的只读引用，不提供子会话输入路径。
+
 ## 模型体验
 
 无，因为会话对象层会选择后续 Host 请求使用的提供方／模型路由，但不添加任何模型可见内容。

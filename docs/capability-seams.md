@@ -199,6 +199,26 @@ flowchart LR
   pkg_cordis_host_runner["cordis-host-runner"]
   svc_dynamicCordisRunner["ctx.dynamicCordisRunner<br/>Dynamic Cordis package host runner"]
   svc_cordisInspect["ctx.cordisInspect<br/>Dynamic Cordis inspect registry"]
+  pkg_supervisor["supervisor"]
+  svc_supervisor["ctx.supervisor<br/>Personal Supervisor service"]
+  pkg_supervisor_session["supervisor-session"]
+  pkg_supervisor_project_registry["supervisor-project-registry"]
+  pkg_supervisor_project_host["supervisor-project-host"]
+  pkg_supervisor_orchestrator["supervisor-orchestrator"]
+  pkg_supervisor_memory["supervisor-memory"]
+  pkg_tool_supervisor["tool-supervisor"]
+  svc_supervisorSession["ctx.supervisorSession<br/>Supervisor session lifecycle"]
+  svc_supervisorProjectRegistry["ctx.supervisorProjectRegistry<br/>Explicit project registry"]
+  svc_supervisorProjectHost["ctx.supervisorProjectHost<br/>Project execution host and writer gate"]
+  pkg_supervisor_executor_subagent["supervisor-executor-subagent"]
+  svc_supervisorExecutors["ctx.supervisorExecutors<br/>Supervisor executor bridge"]
+  svc_supervisorOrchestrator["ctx.supervisorOrchestrator<br/>Bounded Supervisor control loop"]
+  pkg_supervisor_api["supervisor-api"]
+  svc_supervisorMemory["ctx.supervisorMemory<br/>Supervisor memory projection"]
+  svc_supervisorInteraction["ctx.supervisorInteraction<br/>Supervisor interaction and notifications"]
+  svc_supervisorApi["ctx.supervisorApi<br/>Supervisor Host API projection"]
+  pkg_client_runtime["client-runtime"]
+  pkg_client_ui_supervisor["client-ui-supervisor"]
   pkg_acp --> svc_approval
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
@@ -287,10 +307,22 @@ flowchart LR
   pkg_subprocess --> svc_subprocess
   pkg_subprocess_e2b --> svc_subprocess
   pkg_subprocess_local --> svc_subprocess
+  pkg_supervisor --> svc_supervisor
+  pkg_supervisor_api --> svc_supervisorApi
+  pkg_supervisor_executor_subagent --> svc_supervisorExecutors
+  pkg_supervisor_memory --> svc_supervisorMemory
+  pkg_supervisor_orchestrator --> svc_supervisorOrchestrator
+  pkg_supervisor_project_host --> svc_supervisor
+  pkg_supervisor_project_host --> svc_supervisorProjectHost
+  pkg_supervisor_project_registry --> svc_supervisor
+  pkg_supervisor_project_registry --> svc_supervisorProjectRegistry
+  pkg_supervisor_session --> svc_supervisor
+  pkg_supervisor_session --> svc_supervisorSession
   pkg_system_prompt --> svc_systemPrompt
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
   pkg_token_meter --> svc_tokenMeter
+  pkg_tool_supervisor --> svc_supervisorInteraction
   pkg_tools --> svc_tools
   pkg_typert_registry --> svc_typert
   pkg_user_questions --> svc_userQuestions
@@ -388,6 +420,24 @@ flowchart LR
   svc_subprocess --> pkg_subagent_claude_code
   svc_subprocess --> pkg_subagent_codex
   svc_subprocess --> pkg_terminal_bash
+  svc_supervisor --> pkg_supervisor_memory
+  svc_supervisor --> pkg_supervisor_orchestrator
+  svc_supervisor --> pkg_tool_supervisor
+  svc_supervisorApi --> pkg_apiproxy
+  svc_supervisorApi --> pkg_client_runtime
+  svc_supervisorApi --> pkg_client_ui_supervisor
+  svc_supervisorExecutors --> pkg_supervisor_orchestrator
+  svc_supervisorInteraction --> pkg_supervisor_api
+  svc_supervisorInteraction --> pkg_supervisor_orchestrator
+  svc_supervisorMemory --> pkg_supervisor_api
+  svc_supervisorMemory --> pkg_supervisor_orchestrator
+  svc_supervisorOrchestrator --> pkg_supervisor_api
+  svc_supervisorOrchestrator --> pkg_tool_supervisor
+  svc_supervisorProjectHost --> pkg_supervisor_executor_subagent
+  svc_supervisorProjectRegistry --> pkg_supervisor_orchestrator
+  svc_supervisorProjectRegistry --> pkg_supervisor_project_host
+  svc_supervisorSession --> pkg_supervisor_memory
+  svc_supervisorSession --> pkg_supervisor_orchestrator
   svc_systemPrompt --> pkg_agent_loop
   svc_systemPrompt --> pkg_tool_fs
   svc_systemPrompt --> pkg_tool_terminal
@@ -479,5 +529,14 @@ flowchart LR
 | `ctx.apiProxy` | `core` | `apiproxy` | - | `connection` | - | The transport-agnostic host gateway face: it dispatches browser API calls, and each open host stream subscribes to the events it forwards rather than being pushed to through a broadcast verb. |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Owns the in-memory definition registry, the vm sandbox for host halves, and the request-run round trip; browser pages reach the same service over the wire through its remote namespace. |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Registers host inspect providers, mirrors the client provider manifest, and routes client queries through the dynamic Cordis transport. |
+| `ctx.supervisor` | `seam` | [`supervisor`](../packages/supervisor/supervisor) | [`supervisor-session`](../packages/supervisor/supervisor-session), [`supervisor-project-registry`](../packages/supervisor/supervisor-project-registry), [`supervisor-project-host`](../packages/supervisor/supervisor-project-host) | [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator), [`supervisor-memory`](../packages/supervisor/supervisor-memory), [`tool-supervisor`](../packages/supervisor/tool-supervisor) | - | Owns the singleton controller identity, project/task/run vocabulary, and provider registration seam for the main assistant. |
+| `ctx.supervisorSession` | `seam` | [`supervisor-session`](../packages/supervisor/supervisor-session) | - | [`supervisor-memory`](../packages/supervisor/supervisor-memory), [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator) | - | Creates or restores the one durable controller session and persists Supervisor events. |
+| `ctx.supervisorProjectRegistry` | `seam` | [`supervisor-project-registry`](../packages/supervisor/supervisor-project-registry) | - | [`supervisor-project-host`](../packages/supervisor/supervisor-project-host), [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator) | - | Keeps confirmed projects and canonical paths without automatic enrollment. |
+| `ctx.supervisorProjectHost` | `seam` | [`supervisor-project-host`](../packages/supervisor/supervisor-project-host) | - | [`supervisor-executor-subagent`](../packages/supervisor/supervisor-executor-subagent) | - | Binds execution to the registered project cwd and enforces one write lease per project. |
+| `ctx.supervisorExecutors` | `seam` | [`supervisor-executor-subagent`](../packages/supervisor/supervisor-executor-subagent) | - | [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator) | - | Normalizes in-process model and external CLI providers while preserving their capability and permission limits. |
+| `ctx.supervisorOrchestrator` | `core` | [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator) | - | [`tool-supervisor`](../packages/supervisor/tool-supervisor), [`supervisor-api`](../packages/supervisor/supervisor-api) | - | Coordinates classification, approval, dispatch, bounded repair, review, and owner decisions. |
+| `ctx.supervisorMemory` | `core` | [`supervisor-memory`](../packages/supervisor/supervisor-memory) | - | [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator), [`supervisor-api`](../packages/supervisor/supervisor-api) | - | Folds authoritative events into bounded summaries and query briefs for context-safe reporting. |
+| `ctx.supervisorInteraction` | `seam` | [`tool-supervisor`](../packages/supervisor/tool-supervisor) | - | [`supervisor-orchestrator`](../packages/supervisor/supervisor-orchestrator), [`supervisor-api`](../packages/supervisor/supervisor-api) | - | Provides status tools, coalesced critical notifications, and the deduplicated @总控 intake. |
+| `ctx.supervisorApi` | `seam` | [`supervisor-api`](../packages/supervisor/supervisor-api) | - | `apiproxy`, [`client-runtime`](../packages/client/runtime), [`client-ui-supervisor`](../packages/client/ui-supervisor) | - | Exposes revision-guarded read-only project/task/run data to the client dashboard. |
 
 Maintenance mode: hybrid: services are discovered from Cordis declarations; interface/implementation/consumer roles are classified in `scripts/gen-doc-graphs.ts` with a completeness guard.

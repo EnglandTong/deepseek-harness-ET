@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 The API gateway shared by every client consists of the TypeScript API contract (`src/api/`, zero Node dependencies, importable from the browser), the fetch carrier pair (`src/fetch/`: `toFetchHandler` on the host side, `AbstractApiClient` plus platform subclasses on the client side), and the host-side implementation (`src/api-proxy.ts`: `createApiProxy` plus the default-exported `ApiProxyService` gateway plugin — config `{nativeOpen?, sessionExportCompressionLevel?, coldBlankProbeMaxBytes?}`, provides `ctx.apiProxy`). This package registers no routes; carriers such as HTTP wrap `ctx.apiProxy` themselves. The shipped Web composition lives in [`packages/bundle/web-app/cordis.patch.yml`](../../bundle/web-app/cordis.patch.yml), while its default Agent model selection belongs to [`@deepseek-ai/dsh-agent-default-model`](../../core/agent-default-model/README.md) in the base bundle.
 
+The optional `supervisor.*` domain exposes the Personal Supervisor identity, project/task/run snapshots, critical notifications, read-only child-session references, and compare-and-set user actions through the same carrier. Responses carry `version: 1`; every task action includes `expectedRevision`, and stale writes return `supervisor-conflict`. The gateway receives its read/control port from the Supervisor bundle, so this package does not own orchestration state. A profile without that port returns `supervisor-unavailable` and leaves the other API domains usable. Child references set `readOnly: true`; transcript mutation is never available through this domain. The projection serves trusted clients only — it exposes no hidden reasoning, raw stderr, credentials, or project-file operations, and model-visible state still enters through Host session logs and tools.
+
 ## The shared Agent default (`agent-default-model` Settings section)
 
 `ApiProxyService` consumes `ctx.agentDefaultModel`; it does not own a provider/model config or settings section. The shared service registers `{provider, model, reasoningEffort?}` under `agent-default-model`: the base bundle's composition entry is the lower layer and `settings.yaml` layers the user's choice over it.
@@ -70,7 +72,7 @@ None, as the package defines the client↔host wire contract and carriers; nothi
 
 #### KV Cache effect
 
-None; this package neither assembles nor sends a provider request.
+None directly. The API does not modify prompt prefixes or model selection.
 
 ## Known Limitations and Deferred Work
 

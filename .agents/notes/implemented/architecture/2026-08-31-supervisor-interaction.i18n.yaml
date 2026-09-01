@@ -1,0 +1,4 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state.
+2026-08-31-supervisor-interaction.md: 0e6e77188176e5256a521a22f56669f67c59052f
+2026-08-31-supervisor-interaction.zh.md: 9c69fed94a29d84cb3efc8e947932fc5fa65432b

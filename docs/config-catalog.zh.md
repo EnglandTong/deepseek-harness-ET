@@ -2351,6 +2351,81 @@ export interface Config {
 
 来源：[`packages/e2b/subprocess-e2b/src/index.ts:25`](../packages/e2b/subprocess-e2b/src/index.ts)
 
+<a id="deepseek-aidsh-supervisor"></a>
+
+## `@deepseek-ai/dsh-supervisor`
+
+```ts config-catalog
+/** Deployment configuration for the public service definition. */
+export interface SupervisorConfig {
+  /** Optional durable identity supplied by the singleton-session provider. */
+  readonly id?: string
+}
+```
+
+来源：[`packages/supervisor/supervisor/src/types.ts:134`](../packages/supervisor/supervisor/src/types.ts)
+
+<a id="deepseek-aidsh-supervisor-memory"></a>
+
+## `@deepseek-ai/dsh-supervisor-memory`
+
+需要：`supervisor` · `supervisorSession`
+
+```ts config-catalog
+/** Partial deployment input resolved against the package's explicit defaults. */
+export type SupervisorMemoryConfigInput = Partial<SupervisorMemoryConfig>
+
+/** Configuration for deterministic memory bounds. */
+export interface SupervisorMemoryConfig {
+  /** Maximum characters retained in one rolling summary. */
+  readonly maxSummaryChars: number
+  /** Maximum project summaries included in a query brief. */
+  readonly maxBriefSummaries: number
+  /** Maximum notification lines included in a query brief. */
+  readonly maxBriefNotifications: number
+  /** Prompt pressure ratio that requests a compaction. */
+  readonly compactionThreshold: number
+}
+```
+
+来源：[`packages/supervisor/supervisor-memory/src/types.ts:104`](../packages/supervisor/supervisor-memory/src/types.ts)
+
+<a id="deepseek-aidsh-supervisor-orchestrator"></a>
+
+## `@deepseek-ai/dsh-supervisor-orchestrator`
+
+需要：`supervisor` · `supervisorExecutors` · `supervisorSession`
+
+```ts config-catalog
+/** Tunables controlling repair and automatic dispatch. */
+export interface SupervisorOrchestratorConfig {
+  /** Maximum automatic repair attempts for one task. */
+  readonly maxRepairAttempts: number
+  /** Whether policy-approved tasks start without a separate dispatch command. */
+  readonly autoDispatch: boolean
+  /** Whether failed runs may enter the bounded repair loop. */
+  readonly retryOnFailure: boolean
+}
+```
+
+来源：[`packages/supervisor/supervisor-orchestrator/src/types.ts:10`](../packages/supervisor/supervisor-orchestrator/src/types.ts)
+
+<a id="deepseek-aidsh-supervisor-project-registry"></a>
+
+## `@deepseek-ai/dsh-supervisor-project-registry`
+
+```ts config-catalog
+/** Plugin configuration for project registry behavior. */
+export interface ProjectRegistryConfig {
+  /** Provider name used when registering with `ctx.supervisor`; defaults to `filesystem`. */
+  readonly providerName?: string
+  /** Maximum immediate child entries inspected by discovery; defaults to 256. */
+  readonly maxCandidatesPerRoot?: number
+}
+```
+
+来源：[`packages/supervisor/supervisor-project-registry/src/types.ts:43`](../packages/supervisor/supervisor-project-registry/src/types.ts)
+
 <a id="deepseek-aidsh-system-prompt"></a>
 
 ## `@deepseek-ai/dsh-system-prompt`
@@ -2837,6 +2912,22 @@ export interface Config {
 
 来源：[`packages/subagent/tool-subagent-report/src/index.ts:27`](../packages/subagent/tool-subagent-report/src/index.ts)
 
+<a id="deepseek-aidsh-tool-supervisor"></a>
+
+## `@deepseek-ai/dsh-tool-supervisor`
+
+需要：`commands` · `agents` · `supervisor` · `supervisorSession` · `supervisorOrchestrator` · `supervisorProjectRegistry`
+
+```ts config-catalog
+/** Runtime options for notification forwarding. */
+export interface SupervisorInteractionConfig {
+  /** Whether critical notifications wake the singleton controller. */
+  readonly wakeupOnNotification?: boolean
+}
+```
+
+来源：[`packages/supervisor/tool-supervisor/src/index.ts:39`](../packages/supervisor/tool-supervisor/src/index.ts)
+
 <a id="deepseek-aidsh-tool-terminal"></a>
 
 ## `@deepseek-ai/dsh-tool-terminal`
@@ -3223,6 +3314,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-sidebar`（[`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-skill`（[`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-subagent`（[`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-supervisor`（[`packages/client/ui-supervisor/src/index.ts`](../packages/client/ui-supervisor/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-theme`（[`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-tool`（[`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-trajectory`（[`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts)）
@@ -3252,6 +3344,10 @@ export interface Config {
 - `@deepseek-ai/dsh-storage`（[`packages/storage/storage/src/index.ts`](../packages/storage/storage/src/index.ts)）
 - `@deepseek-ai/dsh-subagent`（[`packages/subagent/subagent/src/index.ts`](../packages/subagent/subagent/src/index.ts)）
 - `@deepseek-ai/dsh-subprocess-local`（[`packages/subprocess/subprocess-local/src/index.ts`](../packages/subprocess/subprocess-local/src/index.ts)）
+- `@deepseek-ai/dsh-supervisor-api` — 需要 `supervisor` · `supervisorOrchestrator` · `supervisorSession`（[`packages/supervisor/supervisor-api/src/index.ts`](../packages/supervisor/supervisor-api/src/index.ts)）
+- `@deepseek-ai/dsh-supervisor-executor-subagent` — 需要 `supervisorProjectHost`（[`packages/supervisor/supervisor-executor-subagent/src/index.ts`](../packages/supervisor/supervisor-executor-subagent/src/index.ts)）
+- `@deepseek-ai/dsh-supervisor-project-host` — 需要 `sessions` · `sessionPersistence` · `supervisor`（[`packages/supervisor/supervisor-project-host/src/index.ts`](../packages/supervisor/supervisor-project-host/src/index.ts)）
+- `@deepseek-ai/dsh-supervisor-session` — 需要 `settings` · `sessions` · `sessionPersistence` · `supervisor`（[`packages/supervisor/supervisor-session/src/index.ts`](../packages/supervisor/supervisor-session/src/index.ts)）
 - `@deepseek-ai/dsh-terminal`（[`packages/terminal/terminal/src/index.ts`](../packages/terminal/terminal/src/index.ts)）
 - `@deepseek-ai/dsh-tool-ask-user` — 需要 `tools` · `userInteraction`（[`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)）
 - `@deepseek-ai/dsh-tool-call-timeout-policy` — 需要 `tools`（[`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts)）
@@ -3304,6 +3400,7 @@ export interface Config {
 - `@deepseek-ai/dsh-loader-smoke`（[`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts)）
 - `@deepseek-ai/dsh-native-command`（[`packages/util/native-command/src/index.ts`](../packages/util/native-command/src/index.ts)）
 - `@deepseek-ai/dsh-output-retention`（[`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts)）
+- `@deepseek-ai/dsh-personal-supervisor`（[`packages/bundle/personal-supervisor/src/index.ts`](../packages/bundle/personal-supervisor/src/index.ts)）
 - `@deepseek-ai/dsh-sandbox-windows-acl`（[`packages/sandbox/sandbox-windows-acl/src/index.ts`](../packages/sandbox/sandbox-windows-acl/src/index.ts)）
 - `@deepseek-ai/dsh-scope`（[`packages/core/scope/src/index.ts`](../packages/core/scope/src/index.ts)）
 - `@deepseek-ai/dsh-sdk-client`（[`packages/sdk/client/src/index.ts`](../packages/sdk/client/src/index.ts)）
@@ -3312,6 +3409,8 @@ export interface Config {
 - `@deepseek-ai/dsh-session-telemetry`（[`packages/session/session-telemetry/src/index.ts`](../packages/session/session-telemetry/src/index.ts)）
 - `@deepseek-ai/dsh-session-title-llm`（[`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts)）
 - `@deepseek-ai/dsh-subagent-in-process-driver`（[`packages/subagent/subagent-in-process-driver/src/index.ts`](../packages/subagent/subagent-in-process-driver/src/index.ts)）
+- `@deepseek-ai/dsh-supervisor-project-state`（[`packages/supervisor/supervisor-project-state/src/index.ts`](../packages/supervisor/supervisor-project-state/src/index.ts)）
+- `@deepseek-ai/dsh-supervisor-routing-policy`（[`packages/supervisor/supervisor-routing-policy/src/index.ts`](../packages/supervisor/supervisor-routing-policy/src/index.ts)）
 - `@deepseek-ai/dsh-timeout`（[`packages/util/timeout/src/index.ts`](../packages/util/timeout/src/index.ts)）
 - `@deepseek-ai/dsh-typert-generator`（[`packages/typert/generator/src/index.ts`](../packages/typert/generator/src/index.ts)）
 - `@deepseek-ai/dsh-typert-protocol`（[`packages/typert/protocol/src/index.ts`](../packages/typert/protocol/src/index.ts)）

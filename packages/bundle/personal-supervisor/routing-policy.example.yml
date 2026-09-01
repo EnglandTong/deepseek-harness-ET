@@ -1,0 +1,24 @@
+# Safe starting policy for Personal Supervisor.
+#
+# Copy this document into a user-owned policy file and replace the executor and
+# provider identifiers with installed providers. The bundle never embeds a
+# credential, login value, or user's model preference. Approval and read-only
+# permission are intentionally conservative until the owner changes them.
+
+version: 1
+defaults:
+  approval: confirm
+  permissionCeiling: read
+  timeoutMs: 30000
+  costTier: unknown
+routes:
+  - id: supervised-read
+    domain: [software]
+    taskType: [status, inspect, review]
+    executor: configured-executor
+    provider: configured-provider
+    costTier: unknown
+    permissionCeiling: read
+    approval: confirm
+    timeoutMs: 30000
+    fallback: []

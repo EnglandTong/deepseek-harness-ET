@@ -1,0 +1,45 @@
+{
+  "controllerSessions": 1,
+  "hostSessions": 2,
+  "runsPerProject": [
+    {
+      "project": "project-alpha",
+      "runs": 3
+    },
+    {
+      "project": "project-beta",
+      "runs": 2
+    },
+    {
+      "project": "project-gamma",
+      "runs": 0
+    }
+  ],
+  "finalStatuses": [
+    {
+      "title": "Audit the deployment targets",
+      "status": "ReadyForReview",
+      "revision": 10
+    },
+    {
+      "title": "Migrate the storage layer",
+      "status": "Cancelled",
+      "revision": 4
+    },
+    {
+      "title": "Rewrite the release pipeline",
+      "status": "ReadyForReview",
+      "revision": 11
+    },
+    {
+      "title": "Rotate the production credential",
+      "status": "Failed",
+      "revision": 6
+    },
+    {
+      "title": "Summarize the ledger",
+      "status": "Accepted",
+      "revision": 7
+    }
+  ]
+}

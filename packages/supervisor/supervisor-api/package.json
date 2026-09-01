@@ -1,0 +1,24 @@
+{
+  "name": "@deepseek-ai/dsh-supervisor-api",
+  "description": "Host-facing Personal Supervisor API contract and revision guards",
+  "version": "0.1.0-rc.8",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": { ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" }, "./src/*": "./src/*" },
+  "files": ["lib/index.js", "lib/types/**/*.d.ts"],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-supervisor": "workspace:^",
+    "@deepseek-ai/dsh-supervisor-orchestrator": "workspace:^",
+    "@deepseek-ai/dsh-tool-supervisor": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-supervisor": "workspace:^",
+    "@deepseek-ai/dsh-supervisor-orchestrator": "workspace:^",
+    "@deepseek-ai/dsh-tool-supervisor": "workspace:^",
+    "@deepseek-ai/dsh-invariants": "workspace:^"
+  }
+}

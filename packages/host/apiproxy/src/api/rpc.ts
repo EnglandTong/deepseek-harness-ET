@@ -93,6 +93,9 @@ export interface RpcErrorDetailsMap {
   'subagent-unauthorized': { childSessionId: SessionId }
   'subagent-delivery-unavailable': { childSessionId: SessionId }
   'internal': {}
+  'supervisor-unavailable': { reason: string }
+  'supervisor-conflict': { taskId: string; expected: number; actual: number }
+  'supervisor-invalid-action': { taskId: string; action: string; reason: string }
 }
 
 /** Closed error-code union (the keys of RpcErrorDetailsMap). */

@@ -669,6 +669,539 @@ Types: [Agent](core.md) · [ContentBlock](llm-streaming.md) · [MessageId](llm-s
 
 Source: [`packages/subagent/subagent/src/index.ts:171`](../../packages/subagent/subagent/src/index.ts)
 
+<a id="ctxsupervisor--supervisorservice"></a>
+
+### `ctx.supervisor` — `SupervisorService`
+
+Public Supervisor capability. Providers are registered as Cordis effects.
+
+```ts cordis-catalog
+/** Return the singleton controller identity.
+ * @returns branded identity.
+ */
+identity(): SupervisorIdType
+
+/**
+ * Rebuild the central projection from the durable controller ledger. Only the
+ * singleton-session provider calls this, and only before any live event.
+ * @param events - every Supervisor event of the restored controller Session in log order.
+ * @returns void.
+ */
+restoreLedger(events: readonly SupervisorEvent[]): void
+
+/** Return registered project providers in insertion order.
+ * @returns registered project providers.
+ */
+listProjectProviders(): readonly SupervisorProjectProvider[]
+
+/** Return registered routers in insertion order.
+ * @returns registered routers.
+ */
+listRouters(): readonly SupervisorRouter[]
+
+/** Return registered executors in insertion order.
+ * @returns registered executors.
+ */
+listExecutors(): readonly SupervisorExecutor[]
+
+/** Return registered reporters in insertion order.
+ * @returns registered reporters.
+ */
+listReporters(): readonly SupervisorReporter[]
+
+/** Return the current project snapshots in insertion order.
+ * @returns detached project snapshots.
+ */
+listProjects(): readonly SupervisorProjectSnapshot[]
+
+/** Look up one project snapshot.
+ * @param id - project identity.
+ * @returns the snapshot, or undefined when it is not projected yet.
+ */
+getProject(id: SupervisorProjectId): SupervisorProjectSnapshot | undefined
+
+/** Return all current task snapshots in insertion order.
+ * @returns detached task snapshots.
+ */
+listTasks(): readonly SupervisorTaskSnapshot[]
+
+/** Look up one task snapshot.
+ * @param id - task identity.
+ * @returns the snapshot, or undefined when it is not projected yet.
+ */
+getTask(id: SupervisorTaskId): SupervisorTaskSnapshot | undefined
+
+/** Register a project provider.
+ * @param provider - provider to register.
+ * @returns disposer.
+ */
+registerProjectProvider(provider: SupervisorProjectProvider): () => void
+
+/** Register a router.
+ * @param router - router to register.
+ * @returns disposer.
+ */
+registerRouter(router: SupervisorRouter): () => void
+
+/** Register an executor.
+ * @param executor - executor to register.
+ * @returns disposer.
+ */
+registerExecutor(executor: SupervisorExecutor): () => void
+
+/** Register a reporter.
+ * @param reporter - reporter to register.
+ * @returns disposer.
+ */
+registerReporter(reporter: SupervisorReporter): () => void
+```
+
+Source: [`packages/supervisor/supervisor/src/index.ts:31`](../../packages/supervisor/supervisor/src/index.ts)
+
+<a id="ctxsupervisorapi--supervisorapiservice"></a>
+
+### `ctx.supervisorApi` — `SupervisorApiService`
+
+Exposes a read-only projection and revision-guarded owner review methods. Hidden reasoning, raw stderr, and project file access are intentionally not part of this service.
+
+```ts cordis-catalog
+/** Return the detached dashboard projection for the main assistant.
+ * @returns current detached dashboard projection.
+ */
+status(): SupervisorStatusResponse
+
+/**
+ * Return the controller identity used by the transport-agnostic gateway.
+ * @returns the current Supervisor identity and durable session reference.
+ */
+identity(): SupervisorIdentitySnapshot
+
+/**
+ * Return detached project snapshots for the dashboard.
+ * @returns registered projects.
+ */
+listProjects(): readonly SupervisorProjectSnapshot[]
+
+/**
+ * Return detached task snapshots for the dashboard.
+ * @returns current tasks.
+ */
+listTasks(): readonly SupervisorTaskSnapshot[]
+
+/**
+ * Return currently linked execution runs.
+ * @returns linked runs.
+ */
+listRuns(): readonly SupervisorRunLink[]
+
+/**
+ * Return critical notifications for the dashboard.
+ * @returns pending notifications.
+ */
+listNotifications(): readonly SupervisorNotification[]
+
+/**
+ * Resolve the read-only child session associated with a task run.
+ * @param taskId - task identity.
+ * @param runId - optional exact run identity.
+ * @returns the child-session link, or undefined when no run matches.
+ */
+childSession(taskId: string, runId?: string): { taskId: string runId: string sessionId: string parentSessionId: string readOnly: true } | undefined
+
+/**
+ * Apply a revision-guarded owner action from the client.
+ * @param request - action and optimistic-concurrency revision.
+ * @returns an action receipt after the request is accepted.
+ */
+async action(request: { taskId: string; action: 'approve' | 'reject' | 'rework' | 'pause' | 'continue'; expectedRevision: number; feedback?: string }): Promise<{ taskId: string; revision: number; accepted: true }>
+
+/** Return one detached task and its linked execution runs.
+ * @param taskId - exact task id.
+ * @returns linked task or undefined.
+ */
+task(taskId: string): SupervisorApiTask | undefined
+
+/** Apply an owner review to a task after checking its optimistic-concurrency revision.
+ * @param taskId - task id.
+ * @param revision - client revision.
+ * @param outcome - owner review result.
+ * @returns updated task.
+ */
+async review(taskId: string, revision: number, outcome: 'accepted' | 'needs-fix'): Promise<SupervisorTaskSnapshot>
+```
+
+Source: [`packages/supervisor/supervisor-api/src/index.ts:16`](../../packages/supervisor/supervisor-api/src/index.ts)
+
+<a id="ctxsupervisorexecutors--supervisorexecutorservice"></a>
+
+### `ctx.supervisorExecutors` — `SupervisorExecutorService`
+
+Registers provider adapters and turns routed work into host-owned runs. Providers must reserve a child identity before dispatch; this keeps the host writer gate active before model or CLI work begins.
+
+```ts cordis-catalog
+/**
+ * Register one executor adapter using Cordis effect ownership.
+ * @param provider - trusted adapter for a model or CLI provider family.
+ * @returns disposer that removes new-dispatch visibility.
+ */
+register(provider: SupervisorExecutorProvider): () => void
+
+/**
+ * Return registered executor names in insertion order.
+ * @returns executor names.
+ */
+list(): string[]
+
+/**
+ * Look up one registered executor.
+ * @param name - executor name.
+ * @returns provider, if registered.
+ */
+get(name: string): SupervisorExecutorProvider | undefined
+
+/**
+ * Admit and start one routed child, retaining the exact lease until terminal
+ * result and disposal settle. Provider startup failures release the lease.
+ * @param request - routed work and caller cancellation.
+ * @returns run handle with normalized terminal result.
+ */
+async dispatch(request: SupervisorExecutionRequest): Promise<SupervisorExecutionHandle>
+
+/**
+ * Cancel one exact active run.
+ * @param runId - active run identity.
+ * @returns whether a run existed.
+ */
+async cancel(runId: SupervisorExecutionHandle['runId']): Promise<boolean>
+```
+
+Source: [`packages/supervisor/supervisor-executor-subagent/src/index.ts:37`](../../packages/supervisor/supervisor-executor-subagent/src/index.ts)
+
+<a id="ctxsupervisorinteraction--supervisorinteractionruntime"></a>
+
+### `ctx.supervisorInteraction` — `SupervisorInteractionRuntime`
+
+Owns human command registration and the process-local notification projection. It never changes project files and never turns a child report into acceptance.
+
+```ts cordis-catalog
+/**
+ * Accept one mention from another conversation. A message id is committed
+ * before delivery, so retries cannot send the same intake twice.
+ * @param request - source identity, stable message id, and mention text.
+ * @returns accepted, queued, or duplicate delivery observation.
+ */
+receiveIntake(request: SupervisorIntakeRequest): SupervisorIntakeResult
+
+/**
+ * Return coalesced critical notifications in first-seen order.
+ * @returns notifications.
+ */
+listNotifications(): readonly SupervisorInteractionNotification[]
+
+/**
+ * Return notifications not acknowledged by this runtime instance.
+ * @returns unread notifications.
+ */
+listUnreadNotifications(): readonly SupervisorInteractionNotification[]
+
+/**
+ * Mark a notification key read for this process. The durable Supervisor
+ * event remains unchanged; a later projection can restore its unread fact.
+ * @param id - notification id to acknowledge.
+ * @returns whether a notification was found.
+ */
+acknowledge(id: string): boolean
+
+/**
+ * Register a listener for coalesced critical notifications.
+ * @param listener - receives each notification.
+ * @returns disposer.
+ */
+onNotification(listener: (notification: SupervisorInteractionNotification) => void): () => void
+
+/**
+ * Return a bounded status view for the main assistant and UI.
+ * @returns status view.
+ */
+status(): SupervisorStatusView
+
+/**
+ * Handle one emitted durable critical notification.
+ * @param event - notification event.
+ */
+handleNotification(event: { readonly snapshot: SupervisorNotification }): void
+
+/** Dispose local listeners and reject future external intake. */
+dispose(): void
+```
+
+Source: [`packages/supervisor/tool-supervisor/src/index.ts:61`](../../packages/supervisor/tool-supervisor/src/index.ts)
+
+<a id="ctxsupervisormemory--supervisormemoryservice"></a>
+
+### `ctx.supervisorMemory` — `SupervisorMemoryService`
+
+Runtime service holding live raw records and read-only derived memory.
+
+```ts cordis-catalog
+/** Append one event to the raw in-memory log; persistence is owned by the session layer.
+ * @param event - validated Supervisor event.
+ * @param seq - next contiguous memory sequence, or the implicit next sequence.
+ * @returns void.
+ */
+append(event: SupervisorEvent, seq?: number): void
+
+/** Replace one project's current governance read; no project file is written.
+ * @param item - current project governance state.
+ * @returns void.
+ */
+setGovernance(item: SupervisorGovernanceMemory): void
+
+/** Return a detached copy of the raw log for a persistence/checkpoint adapter.
+ * @returns raw records in sequence order.
+ */
+rawRecords(): readonly SupervisorMemoryRecord[]
+
+/** Build the current structured projection.
+ * @returns authoritative folded projection.
+ */
+project(): SupervisorMemoryProjection
+
+/** Build current rolling summaries from the authoritative event projection.
+ * @param now - timestamp used for generated summaries.
+ * @returns bounded rolling summaries.
+ */
+summaries(now: string = new Date().toISOString()): readonly SupervisorRollingSummary[]
+
+/** Build a bounded brief for one main-assistant question.
+ * @param question - question being answered.
+ * @returns a bounded query brief.
+ */
+brief(question: string): SupervisorQueryBrief
+```
+
+Source: [`packages/supervisor/supervisor-memory/src/index.ts:266`](../../packages/supervisor/supervisor-memory/src/index.ts)
+
+<a id="ctxsupervisororchestrator--supervisororchestratorservice"></a>
+
+### `ctx.supervisorOrchestrator` — `SupervisorOrchestratorService`
+
+Captures main-assistant requests, obtains policy decisions, and drives child execution through one bounded repair loop. It never edits project files or claims owner acceptance.
+
+```ts cordis-catalog
+/**
+ * Return current task snapshots in capture order.
+ * @returns task snapshots.
+ */
+listTasks(): readonly SupervisorTaskSnapshot[]
+
+/**
+ * Look up one task snapshot.
+ * @param taskId - task identity.
+ * @returns task or undefined.
+ */
+getTask(taskId: SupervisorTaskId): SupervisorTaskSnapshot | undefined
+
+/**
+ * Return approval groups awaiting one owner decision.
+ * @returns pending approval batches.
+ */
+listApprovalBatches(): readonly SupervisorApprovalBatch[]
+
+/**
+ * Register a critical-notification listener.
+ * @param listener - receives each notification once.
+ * @returns disposer.
+ */
+onNotification(listener: SupervisorNotificationListener): () => void
+
+/**
+ * Capture and classify one request. Approval-required routes are grouped into
+ * one batch; only policy-approved low-risk routes can auto-dispatch.
+ * @param request - user request and execution context.
+ * @returns task, route and optional approval batch.
+ */
+async capture(request: SupervisorCaptureRequest): Promise<SupervisorCaptureResult>
+
+/**
+ * Approve all tasks in a batch atomically with respect to each task revision.
+ * A denied route remains non-dispatchable even after an owner response.
+ * @param batchId - approval group identity.
+ * @param expectedRevisions - optional stale-write guards by task id.
+ * @returns dispatches started for approved tasks.
+ */
+async approve( batchId: string, expectedRevisions: ReadonlyMap<SupervisorTaskId, number> = new Map(), ): Promise<readonly SupervisorDispatchResult[]>
+
+/**
+ * Approve the single pending batch containing one task.
+ * @param taskId - task identity.
+ * @param expectedRevision - revision observed by the owner.
+ * @returns the started dispatch, when auto-dispatch is enabled.
+ */
+async approveTask(taskId: SupervisorTaskId, expectedRevision: number): Promise<SupervisorDispatchResult | undefined>
+
+/**
+ * Reject the single pending batch containing one task.
+ * @param taskId - task identity.
+ * @param expectedRevision - revision observed by the owner.
+ */
+rejectTask(taskId: SupervisorTaskId, expectedRevision: number): void
+
+/**
+ * Reject all tasks in an approval batch.
+ * @param batchId - approval group identity.
+ * @param expectedRevisions - optional stale-write guards.
+ */
+reject(batchId: string, expectedRevisions: ReadonlyMap<SupervisorTaskId, number> = new Map()): void
+
+/**
+ * Dispatch a ready task and observe its terminal result asynchronously.
+ * @param taskId - task identity.
+ * @param expectedRevision - optional optimistic-concurrency guard.
+ * @returns child run identity and running task snapshot.
+ */
+async dispatch(taskId: SupervisorTaskId, expectedRevision?: number): Promise<SupervisorDispatchResult>
+
+/**
+ * Wait for one active or completed run.
+ * @param runId - exact run identity.
+ * @returns terminal execution result.
+ */
+async wait(runId: ReturnType<typeof SupervisorRunId>): Promise<SupervisorRunResult>
+
+/**
+ * Apply an owner follow-up only to the revision the owner viewed.
+ * @param request - revision-safe follow-up.
+ * @returns the started repair dispatch.
+ */
+async followUp(request: SupervisorFollowUpRequest): Promise<SupervisorDispatchResult>
+
+/** Record the owner's review without inferring acceptance from execution output.
+ * @param taskId - exact task identity.
+ * @param expectedRevision - revision shown by the owner.
+ * @param outcome - explicit owner decision.
+ * @returns the updated task snapshot.
+ */
+review(taskId: SupervisorTaskId, expectedRevision: number, outcome: 'accepted' | 'needs-fix'): SupervisorTaskSnapshot
+
+/**
+ * Cancel one exact run without touching peer projects.
+ * @param taskId - task to interrupt.
+ */
+async interrupt(taskId: SupervisorTaskId): Promise<void>
+```
+
+Source: [`packages/supervisor/supervisor-orchestrator/src/index.ts:64`](../../packages/supervisor/supervisor-orchestrator/src/index.ts)
+
+<a id="ctxsupervisorprojecthost--supervisorprojecthostservice"></a>
+
+### `ctx.supervisorProjectHost` — `SupervisorProjectHostService`
+
+Owns hidden Sessions for explicitly registered projects. The service never invokes a model or starts a subagent; the executor bridge acquires a lease before it creates its child, attaches exact child ownership, and releases it after the child settles. This makes the project writer lock cover admission, execution, cancellation, and teardown rather than a task-label convention.
+
+```ts cordis-catalog
+/**
+ * Return a detached hidden-host description, if it is currently resident.
+ * @param projectId - registered project identity.
+ * @returns resident host metadata, if present.
+ */
+getHost(projectId: SupervisorProjectId): SupervisorProjectHostSnapshot | undefined
+
+/**
+ * Create or restore the exact hidden host for a registered project.
+ * @param projectId - registered project identity.
+ * @returns durable host metadata after publication.
+ */
+async ensureHost(projectId: SupervisorProjectId): Promise<SupervisorProjectHostSnapshot>
+
+/**
+ * Reserve a project execution slot before starting its child. A read-only
+ * reviewer can coexist with a writer, but a second writer is rejected until
+ * the first exact lease releases.
+ * @param request - project, task, child, executor and permission facts.
+ * @returns a lease that owns exactly one admitted child lifecycle.
+ */
+async admit(request: SupervisorRunAdmissionRequest): Promise<SupervisorRunLease>
+
+/**
+ * Reconcile durable links supplied by the central projection after restart.
+ * A link with a live child reclaims its writer lock; an uncertain writer is
+ * deliberately refused, so the orchestrator cannot repeat unsafe work.
+ * @param recoveries - central-projection observations for previously linked runs.
+ * @returns leases for recovered live children; the provider attaches each exact lifecycle so settlement can release its gate.
+ */
+async reconcile(recoveries: readonly SupervisorRunRecovery[]): Promise<readonly SupervisorRunLease[]>
+```
+
+Source: [`packages/supervisor/supervisor-project-host/src/index.ts:69`](../../packages/supervisor/supervisor-project-host/src/index.ts)
+
+<a id="ctxsupervisorprojectregistry--supervisorprojectregistry"></a>
+
+### `ctx.supervisorProjectRegistry` — `SupervisorProjectRegistry`
+
+Registry for explicit project enrollment. Discovery accepts only caller supplied roots and performs metadata-only reads. Enrollment canonicalizes through `realpath`, emits one versioned project snapshot, and never changes project files or creates an execution session.
+
+```ts cordis-catalog
+/**
+ * Return currently enrolled projects, excluding removed records.
+ * @returns enrolled project snapshots.
+ */
+list(): readonly RegisteredProject[]
+
+/**
+ * Look up one enrolled project by opaque id.
+ * @param id - project identity.
+ * @returns the project, or undefined.
+ */
+get(id: SupervisorProjectId): RegisteredProject | undefined
+
+/**
+ * Enumerate immediate children of explicit roots. The method never reads file
+ * contents, writes a Packet, or enrolls a candidate; callers must confirm
+ * one result through {@link registerProject}.
+ * @param options - explicit roots, item bound, and optional cancellation.
+ * @returns metadata-only candidates in deterministic path order.
+ */
+async suggestProjects(options: ProjectDiscoveryOptions): Promise<readonly ProjectCandidate[]>
+
+/**
+ * Enroll an existing directory after user confirmation. Canonical realpaths
+ * make symlink and junction aliases idempotent; a missing or non-directory
+ * path fails without publishing state.
+ * @param path - user-confirmed directory path.
+ * @param displayName - optional label; defaults to the canonical basename.
+ * @returns the committed project snapshot.
+ */
+async registerProject(path: string, displayName?: string): Promise<RegisteredProject>
+
+/**
+ * Re-check registered paths and publish `unavailable` only after a definite
+ * disappearance. Other I/O failures propagate so permission faults are not
+ * mistaken for missing projects.
+ * @returns the refreshed project snapshots.
+ */
+async refreshStatuses(): Promise<readonly RegisteredProject[]>
+
+/**
+ * Remove only the central enrollment relation. Project files, directories,
+ * sessions, and any governance records remain untouched; repeated removal is
+ * an idempotent false result.
+ * @param id - project identity to remove.
+ * @returns a promise resolving to true when an active registration was removed.
+ */
+async removeProject(id: SupervisorProjectId): Promise<boolean>
+```
+
+Source: [`packages/supervisor/supervisor-project-registry/src/index.ts:67`](../../packages/supervisor/supervisor-project-registry/src/index.ts)
+
+<a id="ctxsupervisorsession--supervisorsessionservice"></a>
+
+### `ctx.supervisorSession` — `SupervisorSessionService`
+
+Owns the one controller Session. It never creates project Sessions or executes an Agent. Durable identity is flushed before the settings id is committed, so a restart can always choose between a valid log and first boot.
+
+Source: [`packages/supervisor/supervisor-session/src/index.ts:61`](../../packages/supervisor/supervisor-session/src/index.ts)
+
 <a id="subagent-events"></a>
 
 ### `subagent/*` events
@@ -752,4 +1285,104 @@ A provider established a published child. For in-process providers, `ctx.agents.
 Types: [Scoped](scope.md)
 
 Source: [`packages/subagent/subagent/src/index.ts:157`](../../packages/subagent/subagent/src/index.ts)
+
+<a id="supervisor-events"></a>
+
+### `supervisor/*` events
+
+<a id="supervisoridentity--emit"></a>
+
+#### `supervisor/identity` — emit
+
+Emitted when the singleton controller identity is created or restored.
+
+```ts cordis-catalog
+/** Emitted when the singleton controller identity is created or restored.
+ * @mode emit
+ * @param event - versioned controller identity event.
+ */
+'supervisor/identity'(event: SupervisorIdentityEvent): void
+```
+
+Source: [`packages/supervisor/supervisor/src/events.ts:89`](../../packages/supervisor/supervisor/src/events.ts)
+
+<a id="supervisornotification--emit"></a>
+
+#### `supervisor/notification` — emit
+
+Emitted when a user-facing Supervisor notification is created or updated.
+
+```ts cordis-catalog
+/** Emitted when a user-facing Supervisor notification is created or updated.
+ * @mode emit
+ * @param event - versioned user-facing notification.
+ */
+'supervisor/notification'(event: SupervisorNotificationEvent): void
+```
+
+Source: [`packages/supervisor/supervisor/src/events.ts:114`](../../packages/supervisor/supervisor/src/events.ts)
+
+<a id="supervisorpolicy-applied--emit"></a>
+
+#### `supervisor/policy-applied` — emit
+
+Emitted when a routing policy decision is recorded for a task.
+
+```ts cordis-catalog
+/** Emitted when a routing policy decision is recorded for a task.
+ * @mode emit
+ * @param event - versioned applied routing policy evidence.
+ */
+'supervisor/policy-applied'(event: SupervisorPolicyAppliedEvent): void
+```
+
+Source: [`packages/supervisor/supervisor/src/events.ts:109`](../../packages/supervisor/supervisor/src/events.ts)
+
+<a id="supervisorproject--emit"></a>
+
+#### `supervisor/project` — emit
+
+Emitted when a registered project snapshot changes.
+
+```ts cordis-catalog
+/** Emitted when a registered project snapshot changes.
+ * @mode emit
+ * @param event - versioned project event.
+ */
+'supervisor/project'(event: SupervisorProjectEvent): void
+```
+
+Source: [`packages/supervisor/supervisor/src/events.ts:94`](../../packages/supervisor/supervisor/src/events.ts)
+
+<a id="supervisorrun-linked--emit"></a>
+
+#### `supervisor/run-linked` — emit
+
+Emitted when a task is linked to its host and child execution sessions.
+
+```ts cordis-catalog
+/** Emitted when a task is linked to its host and child execution sessions.
+ * @mode emit
+ * @param event - versioned task execution association.
+ */
+'supervisor/run-linked'(event: SupervisorRunLinkedEvent): void
+```
+
+Source: [`packages/supervisor/supervisor/src/events.ts:104`](../../packages/supervisor/supervisor/src/events.ts)
+
+<a id="supervisortask--emit"></a>
+
+#### `supervisor/task` — emit
+
+Emitted when a supervised task snapshot changes.
+
+```ts cordis-catalog
+/** Emitted when a supervised task snapshot changes.
+ * @mode emit
+ * @param event - versioned task event.
+ */
+'supervisor/task'(event: SupervisorTaskEvent): void
+```
+
+Source: [`packages/supervisor/supervisor/src/events.ts:99`](../../packages/supervisor/supervisor/src/events.ts)
 <!-- END GENERATED cordis-surface -->

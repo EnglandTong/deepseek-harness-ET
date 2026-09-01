@@ -74,6 +74,9 @@ export const rpcErrorSchema: z.ZodType<RpcError> = z.discriminatedUnion('code', 
   z.object({ code: z.literal('subagent-not-resumable'), message: z.string(), details: z.object({ childSessionId: z.string() }) }),
   z.object({ code: z.literal('subagent-unauthorized'), message: z.string(), details: z.object({ childSessionId: z.string() }) }),
   z.object({ code: z.literal('subagent-delivery-unavailable'), message: z.string(), details: z.object({ childSessionId: z.string() }) }),
+  z.object({ code: z.literal('supervisor-unavailable'), message: z.string(), details: z.object({ reason: z.string() }) }),
+  z.object({ code: z.literal('supervisor-conflict'), message: z.string(), details: z.object({ taskId: z.string(), expected: z.number().int(), actual: z.number().int() }) }),
+  z.object({ code: z.literal('supervisor-invalid-action'), message: z.string(), details: z.object({ taskId: z.string(), action: z.string(), reason: z.string() }) }),
   z.object({ code: z.literal('internal'), message: z.string(), details: z.object({}) }),
 ]) as unknown as z.ZodType<RpcError>
 

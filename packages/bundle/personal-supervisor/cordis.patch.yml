@@ -1,0 +1,71 @@
+# Optional Personal Supervisor bundle over dsh-base.
+#
+# This layer owns controller services and their process-local coordination.
+# It does not replace the profile's model, default Agent preset, shell stack,
+# filesystem tools, credentials, or external CLI provider bundles. A later
+# profile or home patch may replace the routing example with the user's policy.
+
+- insert:
+    # The public service is the single registry for project, task, run, and
+    # notification snapshots. It has no production tools of its own.
+    - id: supervisor
+      name: '@deepseek-ai/dsh-supervisor'
+
+    # Creates or restores exactly one durable controller Session. The settings
+    # namespace and identity event are owned by this provider.
+    - id: supervisor-session
+      name: '@deepseek-ai/dsh-supervisor-session'
+
+    # Project enrollment is explicit and metadata-only; discovery never adds a
+    # project without a caller's registration operation.
+    - id: supervisor-project-registry
+      name: '@deepseek-ai/dsh-supervisor-project-registry'
+      config:
+        maxCandidatesPerRoot: 256
+
+    # Project hosts supply cwd ownership and the single-writer admission gate.
+    # They do not create model or CLI processes until an executor is admitted.
+    - id: supervisor-project-host
+      name: '@deepseek-ai/dsh-supervisor-project-host'
+
+    # The executor bridge is dormant until a provider registers. Provider
+    # bundles remain optional and retain their native authentication/config.
+    - id: supervisor-executors
+      name: '@deepseek-ai/dsh-supervisor-executor-subagent'
+
+    # Orchestration is bounded and revision-safe. A completed child remains
+    # ReadyForReview until an owner explicitly records the review result.
+    - id: supervisor-orchestrator
+      name: '@deepseek-ai/dsh-supervisor-orchestrator'
+      config:
+        maxRepairAttempts: 2
+        autoDispatch: true
+        retryOnFailure: true
+
+    # Memory reads Supervisor events and produces bounded briefs. It does not
+    # replace the session log or persist hidden reasoning.
+    - id: supervisor-memory
+      name: '@deepseek-ai/dsh-supervisor-memory'
+      config:
+        maxSummaryChars: 1200
+        maxBriefSummaries: 12
+        maxBriefNotifications: 12
+        compactionThreshold: 0.75
+
+    # Human commands, critical-notification coalescing, and @总控 intake. The
+    # default keeps notifications in the main assistant inbox without waking
+    # it for every notice; a user patch may opt into wakeupOnNotification.
+    - id: supervisor-interaction
+      name: '@deepseek-ai/dsh-tool-supervisor'
+      config:
+        wakeupOnNotification: false
+
+    # Host-facing read projection used by the dashboard/client contract.
+    - id: supervisor-api
+      name: '@deepseek-ai/dsh-supervisor-api'
+
+    # Browser-only dashboard entry. Its node half is a no-op, while the client
+    # metadata mounts the one-window project/task overview when a web profile
+    # is present.
+    - id: supervisor-ui
+      name: '@deepseek-ai/dsh-client-ui-supervisor'

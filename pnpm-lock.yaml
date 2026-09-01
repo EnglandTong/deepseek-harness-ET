@@ -1273,6 +1273,55 @@ importers:
         specifier: workspace:^
         version: link:../../core/session
 
+  packages/bundle/personal-supervisor:
+    dependencies:
+      '@deepseek-ai/dsh-client-ui-supervisor':
+        specifier: workspace:^
+        version: link:../../client/ui-supervisor
+      '@deepseek-ai/dsh-persona':
+        specifier: workspace:^
+        version: link:../../preset/persona
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor
+      '@deepseek-ai/dsh-supervisor-api':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-api
+      '@deepseek-ai/dsh-supervisor-executor-subagent':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-executor-subagent
+      '@deepseek-ai/dsh-supervisor-memory':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-memory
+      '@deepseek-ai/dsh-supervisor-orchestrator':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-orchestrator
+      '@deepseek-ai/dsh-supervisor-project-host':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-project-host
+      '@deepseek-ai/dsh-supervisor-project-registry':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-project-registry
+      '@deepseek-ai/dsh-supervisor-session':
+        specifier: workspace:^
+        version: link:../../supervisor/supervisor-session
+      '@deepseek-ai/dsh-tool-supervisor':
+        specifier: workspace:^
+        version: link:../../supervisor/tool-supervisor
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      js-yaml:
+        specifier: ^4.2.0
+        version: 4.2.0
+
   packages/bundle/web-app:
     dependencies:
       '@deepseek-ai/dsh-agent-presets':
@@ -2888,6 +2937,42 @@ importers:
       '@deepseek-ai/dsh-token-meter':
         specifier: workspace:^
         version: link:../../llm/token-meter
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+
+  packages/client/ui-supervisor:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@deepseek-ai/dsh-client-runtime':
+        specifier: workspace:^
+        version: link:../runtime
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@deepseek-ai/dsh-client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@deepseek-ai/dsh-client-ui-sidebar':
+        specifier: workspace:^
+        version: link:../ui-sidebar
+      '@deepseek-ai/dsh-client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@deepseek-ai/dsh-host-apiproxy':
+        specifier: workspace:^
+        version: link:../../host/apiproxy
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -7852,6 +7937,228 @@ importers:
       '@deepseek-ai/dsh-timeout':
         specifier: workspace:^
         version: link:../../util/timeout
+
+  packages/supervisor/supervisor:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+
+  packages/supervisor/supervisor-api:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@deepseek-ai/dsh-supervisor-orchestrator':
+        specifier: workspace:^
+        version: link:../supervisor-orchestrator
+      '@deepseek-ai/dsh-tool-supervisor':
+        specifier: workspace:^
+        version: link:../tool-supervisor
+
+  packages/supervisor/supervisor-executor-subagent:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@deepseek-ai/dsh-supervisor-project-host':
+        specifier: workspace:^
+        version: link:../supervisor-project-host
+      '@deepseek-ai/dsh-supervisor-routing-policy':
+        specifier: workspace:^
+        version: link:../supervisor-routing-policy
+
+  packages/supervisor/supervisor-memory:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@deepseek-ai/dsh-supervisor-project-state':
+        specifier: workspace:^
+        version: link:../supervisor-project-state
+      '@deepseek-ai/dsh-supervisor-session':
+        specifier: workspace:^
+        version: link:../supervisor-session
+
+  packages/supervisor/supervisor-orchestrator:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@deepseek-ai/dsh-supervisor-executor-subagent':
+        specifier: workspace:^
+        version: link:../supervisor-executor-subagent
+      '@deepseek-ai/dsh-supervisor-routing-policy':
+        specifier: workspace:^
+        version: link:../supervisor-routing-policy
+
+  packages/supervisor/supervisor-project-host:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: workspace:^
+        version: link:../../session/session-persistence
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+
+  packages/supervisor/supervisor-project-registry:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+
+  packages/supervisor/supervisor-project-state:
+    devDependencies:
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+
+  packages/supervisor/supervisor-routing-policy:
+    dependencies:
+      js-yaml:
+        specifier: ^4.2.0
+        version: 4.2.0
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
+
+  packages/supervisor/supervisor-session:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-session-persistence':
+        specifier: workspace:^
+        version: link:../../session/session-persistence
+      '@deepseek-ai/dsh-session-persistence-jsonl':
+        specifier: workspace:^
+        version: link:../../session/session-persistence-jsonl
+      '@deepseek-ai/dsh-session-persistence-sqlite':
+        specifier: workspace:^
+        version: link:../../session/session-persistence-sqlite
+      '@deepseek-ai/dsh-settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+
+  packages/supervisor/tool-supervisor:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-commands':
+        specifier: workspace:^
+        version: link:../../interaction/commands
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-supervisor':
+        specifier: workspace:^
+        version: link:../supervisor
+      '@deepseek-ai/dsh-supervisor-orchestrator':
+        specifier: workspace:^
+        version: link:../supervisor-orchestrator
+      '@deepseek-ai/dsh-supervisor-project-registry':
+        specifier: workspace:^
+        version: link:../supervisor-project-registry
+      '@deepseek-ai/dsh-supervisor-session':
+        specifier: workspace:^
+        version: link:../supervisor-session
 
   packages/terminal/terminal:
     devDependencies:

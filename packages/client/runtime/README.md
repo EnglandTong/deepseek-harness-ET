@@ -80,6 +80,10 @@ A `turn/end` whose reason is `max-tokens` projects one `turn-max-tokens` node at
 
 Each resident `Session` owns a `modelSelection` snapshot containing the current `ModelSelection`, provider-grouped directory, provider-local failures, and the `idle`/`loading`/`ready`/`selecting`/`error` state. History establishes or refreshes the current selection, opening a selector refreshes the directory, and selection failures preserve the last selection and usable groups. Directory and selection operations share a monotonically increasing generation so an older response cannot overwrite a newer selection. A reconnect rebuild restores the selection reported by the Host without replacing unchanged selection substructure.
 
+## Personal Supervisor projection
+
+`SupervisorRuntime` owns one observable client projection for the optional Personal Supervisor API. `refresh()` replaces identity, projects, tasks, runs, and critical notifications from the Host response, while `action()` sends a task revision compare-and-set and refreshes after acknowledgement. Errors remain in the projection for the UI to report; the runtime never guesses a state transition from a failed request. `childSession()` returns a Host-issued read-only reference, and does not expose a child input path.
+
 ## Model Experience
 
 None, as the session object layer selects the provider/model route used by a later Host request but adds no model-visible content.

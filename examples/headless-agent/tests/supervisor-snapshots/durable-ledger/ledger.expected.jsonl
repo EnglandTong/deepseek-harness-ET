@@ -1,0 +1,61 @@
+{"type":"identity","revision":1,"sessionId":"supervisor-main"}
+{"type":"project","revision":1,"status":"registered","displayName":"Alpha"}
+{"type":"project","revision":1,"status":"registered","displayName":"Beta"}
+{"type":"task","revision":1,"status":"Captured","title":"Summarize the ledger"}
+{"type":"task","revision":2,"status":"Classified","title":"Summarize the ledger"}
+{"type":"policy-applied","revision":1,"executor":"fixture-subagent","requiresApproval":false,"reason":"Matched route \"supervisor-command\""}
+{"type":"task","revision":3,"status":"Ready","title":"Summarize the ledger"}
+{"type":"task","revision":4,"status":"Dispatched","title":"Summarize the ledger"}
+{"type":"run-linked","revision":1,"executor":"fixture-subagent","writeAccess":false}
+{"type":"task","revision":5,"status":"Running","title":"Summarize the ledger"}
+{"type":"task","revision":1,"status":"Captured","title":"Audit the deployment targets"}
+{"type":"task","revision":2,"status":"Classified","title":"Audit the deployment targets"}
+{"type":"policy-applied","revision":1,"executor":"fixture-subagent","requiresApproval":false,"reason":"Matched route \"supervisor-command\""}
+{"type":"task","revision":3,"status":"Ready","title":"Audit the deployment targets"}
+{"type":"task","revision":4,"status":"Dispatched","title":"Audit the deployment targets"}
+{"type":"task","revision":6,"status":"ReadyForReview","title":"Summarize the ledger"}
+{"type":"notification","revision":1,"kind":"ready-for-review","message":"Execution completed and is ready for review; owner acceptance is still required."}
+{"type":"run-linked","revision":1,"executor":"fixture-subagent","writeAccess":false}
+{"type":"task","revision":5,"status":"Running","title":"Audit the deployment targets"}
+{"type":"task","revision":6,"status":"ReadyForReview","title":"Audit the deployment targets"}
+{"type":"notification","revision":1,"kind":"ready-for-review","message":"Execution completed and is ready for review; owner acceptance is still required."}
+{"type":"task","revision":1,"status":"Captured","title":"Rewrite the release pipeline"}
+{"type":"task","revision":2,"status":"Classified","title":"Rewrite the release pipeline"}
+{"type":"policy-applied","revision":1,"executor":"fixture-subagent","requiresApproval":true,"reason":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"task","revision":3,"status":"AwaitingApproval","title":"Rewrite the release pipeline","blocker":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"notification","revision":1,"kind":"owner-decision","message":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"task","revision":4,"status":"Ready","title":"Rewrite the release pipeline","blocker":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"task","revision":5,"status":"Dispatched","title":"Rewrite the release pipeline","blocker":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"run-linked","revision":1,"executor":"fixture-subagent","writeAccess":false}
+{"type":"task","revision":6,"status":"Running","title":"Rewrite the release pipeline","blocker":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"task","revision":7,"status":"ReadyForReview","title":"Rewrite the release pipeline","blocker":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"notification","revision":1,"kind":"ready-for-review","message":"Execution completed and is ready for review; owner acceptance is still required."}
+{"type":"task","revision":7,"status":"Accepted","title":"Summarize the ledger"}
+{"type":"task","revision":8,"status":"NeedsFix","title":"Rewrite the release pipeline","blocker":"Return the corrected report"}
+{"type":"task","revision":9,"status":"Dispatched","title":"Rewrite the release pipeline","blocker":"Return the corrected report"}
+{"type":"run-linked","revision":1,"executor":"fixture-subagent","writeAccess":false}
+{"type":"task","revision":10,"status":"Running","title":"Rewrite the release pipeline","blocker":"Return the corrected report"}
+{"type":"task","revision":11,"status":"ReadyForReview","title":"Rewrite the release pipeline","blocker":"Return the corrected report"}
+{"type":"notification","revision":1,"kind":"ready-for-review","message":"Execution completed and is ready for review; owner acceptance is still required."}
+{"type":"task","revision":7,"status":"NeedsFix","title":"Audit the deployment targets","blocker":"Owner requested a fix"}
+{"type":"task","revision":8,"status":"Dispatched","title":"Audit the deployment targets","blocker":"Owner requested a fix"}
+{"type":"run-linked","revision":1,"executor":"fixture-subagent","writeAccess":false}
+{"type":"task","revision":9,"status":"Running","title":"Audit the deployment targets","blocker":"Owner requested a fix"}
+{"type":"task","revision":10,"status":"ReadyForReview","title":"Audit the deployment targets","blocker":"Owner requested a fix"}
+{"type":"notification","revision":1,"kind":"ready-for-review","message":"Execution completed and is ready for review; owner acceptance is still required."}
+{"type":"task","revision":1,"status":"Captured","title":"Rotate the production credential"}
+{"type":"task","revision":2,"status":"Classified","title":"Rotate the production credential"}
+{"type":"policy-applied","revision":1,"executor":"fixture-subagent","requiresApproval":true,"reason":"Matched route \"supervisor-command\"; requested permission exceeds ceiling write"}
+{"type":"task","revision":3,"status":"AwaitingApproval","title":"Rotate the production credential","blocker":"Matched route \"supervisor-command\"; requested permission exceeds ceiling write"}
+{"type":"notification","revision":1,"kind":"owner-decision","message":"Matched route \"supervisor-command\"; requested permission exceeds ceiling write"}
+{"type":"task","revision":4,"status":"Ready","title":"Rotate the production credential","blocker":"Matched route \"supervisor-command\"; requested permission exceeds ceiling write"}
+{"type":"task","revision":5,"status":"Dispatched","title":"Rotate the production credential","blocker":"Matched route \"supervisor-command\"; requested permission exceeds ceiling write"}
+{"type":"task","revision":6,"status":"Failed","title":"Rotate the production credential","blocker":"route cannot grant 'admin' permission"}
+{"type":"notification","revision":1,"kind":"failed","message":"Dispatch failed before the child run started."}
+{"type":"task","revision":1,"status":"Captured","title":"Migrate the storage layer"}
+{"type":"task","revision":2,"status":"Classified","title":"Migrate the storage layer"}
+{"type":"policy-applied","revision":1,"executor":"fixture-subagent","requiresApproval":true,"reason":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"task","revision":3,"status":"AwaitingApproval","title":"Migrate the storage layer","blocker":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"notification","revision":1,"kind":"owner-decision","message":"Matched route \"supervisor-command\"; risk gate requires owner confirmation"}
+{"type":"task","revision":4,"status":"Cancelled","title":"Migrate the storage layer","blocker":"Owner rejected the route"}
+{"type":"project","revision":1,"status":"registered","displayName":"Gamma"}

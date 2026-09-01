@@ -1805,6 +1805,470 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'supervisor',
+    summary: 'Public Supervisor capability.',
+    description: 'Public Supervisor capability. Providers are registered as Cordis effects.',
+    methods: [
+      {
+        signature: 'identity(): SupervisorIdType',
+        description: 'Return the singleton controller identity.',
+        parameters: [],
+        returns: 'branded identity.',
+      },
+      {
+        signature: 'restoreLedger(events: readonly SupervisorEvent[]): void',
+        description: 'Rebuild the central projection from the durable controller ledger. Only the singleton-session provider calls this, and only before any live event.',
+        parameters: [{ name: 'events', description: 'every Supervisor event of the restored controller Session in log order.' }],
+        returns: 'void.',
+      },
+      {
+        signature: 'listProjectProviders(): readonly SupervisorProjectProvider[]',
+        description: 'Return registered project providers in insertion order.',
+        parameters: [],
+        returns: 'registered project providers.',
+      },
+      {
+        signature: 'listRouters(): readonly SupervisorRouter[]',
+        description: 'Return registered routers in insertion order.',
+        parameters: [],
+        returns: 'registered routers.',
+      },
+      {
+        signature: 'listExecutors(): readonly SupervisorExecutor[]',
+        description: 'Return registered executors in insertion order.',
+        parameters: [],
+        returns: 'registered executors.',
+      },
+      {
+        signature: 'listReporters(): readonly SupervisorReporter[]',
+        description: 'Return registered reporters in insertion order.',
+        parameters: [],
+        returns: 'registered reporters.',
+      },
+      {
+        signature: 'listProjects(): readonly SupervisorProjectSnapshot[]',
+        description: 'Return the current project snapshots in insertion order.',
+        parameters: [],
+        returns: 'detached project snapshots.',
+      },
+      {
+        signature: 'getProject(id: SupervisorProjectId): SupervisorProjectSnapshot | undefined',
+        description: 'Look up one project snapshot.',
+        parameters: [{ name: 'id', description: 'project identity.' }],
+        returns: 'the snapshot, or undefined when it is not projected yet.',
+      },
+      {
+        signature: 'listTasks(): readonly SupervisorTaskSnapshot[]',
+        description: 'Return all current task snapshots in insertion order.',
+        parameters: [],
+        returns: 'detached task snapshots.',
+      },
+      {
+        signature: 'getTask(id: SupervisorTaskId): SupervisorTaskSnapshot | undefined',
+        description: 'Look up one task snapshot.',
+        parameters: [{ name: 'id', description: 'task identity.' }],
+        returns: 'the snapshot, or undefined when it is not projected yet.',
+      },
+      {
+        signature: 'registerProjectProvider(provider: SupervisorProjectProvider): () => void',
+        description: 'Register a project provider.',
+        parameters: [{ name: 'provider', description: 'provider to register.' }],
+        returns: 'disposer.',
+      },
+      {
+        signature: 'registerRouter(router: SupervisorRouter): () => void',
+        description: 'Register a router.',
+        parameters: [{ name: 'router', description: 'router to register.' }],
+        returns: 'disposer.',
+      },
+      {
+        signature: 'registerExecutor(executor: SupervisorExecutor): () => void',
+        description: 'Register an executor.',
+        parameters: [{ name: 'executor', description: 'executor to register.' }],
+        returns: 'disposer.',
+      },
+      {
+        signature: 'registerReporter(reporter: SupervisorReporter): () => void',
+        description: 'Register a reporter.',
+        parameters: [{ name: 'reporter', description: 'reporter to register.' }],
+        returns: 'disposer.',
+      },
+    ],
+  },
+  {
+    key: 'supervisorApi',
+    summary: 'Exposes a read-only projection and revision-guarded owner review methods.',
+    description: 'Exposes a read-only projection and revision-guarded owner review methods. Hidden reasoning, raw stderr, and project file access are intentionally not part of this service.',
+    methods: [
+      {
+        signature: 'status(): SupervisorStatusResponse',
+        description: 'Return the detached dashboard projection for the main assistant.',
+        parameters: [],
+        returns: 'current detached dashboard projection.',
+      },
+      {
+        signature: 'identity(): SupervisorIdentitySnapshot',
+        description: 'Return the controller identity used by the transport-agnostic gateway.',
+        parameters: [],
+        returns: 'the current Supervisor identity and durable session reference.',
+      },
+      {
+        signature: 'listProjects(): readonly SupervisorProjectSnapshot[]',
+        description: 'Return detached project snapshots for the dashboard.',
+        parameters: [],
+        returns: 'registered projects.',
+      },
+      {
+        signature: 'listTasks(): readonly SupervisorTaskSnapshot[]',
+        description: 'Return detached task snapshots for the dashboard.',
+        parameters: [],
+        returns: 'current tasks.',
+      },
+      {
+        signature: 'listRuns(): readonly SupervisorRunLink[]',
+        description: 'Return currently linked execution runs.',
+        parameters: [],
+        returns: 'linked runs.',
+      },
+      {
+        signature: 'listNotifications(): readonly SupervisorNotification[]',
+        description: 'Return critical notifications for the dashboard.',
+        parameters: [],
+        returns: 'pending notifications.',
+      },
+      {
+        signature: 'childSession(taskId: string, runId?: string): { taskId: string runId: string sessionId: string parentSessionId: string readOnly: true } | undefined',
+        description: 'Resolve the read-only child session associated with a task run.',
+        parameters: [{ name: 'taskId', description: 'task identity.' }, { name: 'runId', description: 'optional exact run identity.' }],
+        returns: 'the child-session link, or undefined when no run matches.',
+      },
+      {
+        signature: 'async action(request: { taskId: string; action: \'approve\' | \'reject\' | \'rework\' | \'pause\' | \'continue\'; expectedRevision: number; feedback?: string }): Promise<{ taskId: string; revision: number; accepted: true }>',
+        description: 'Apply a revision-guarded owner action from the client.',
+        parameters: [{ name: 'request', description: 'action and optimistic-concurrency revision.' }],
+        returns: 'an action receipt after the request is accepted.',
+      },
+      {
+        signature: 'task(taskId: string): SupervisorApiTask | undefined',
+        description: 'Return one detached task and its linked execution runs.',
+        parameters: [{ name: 'taskId', description: 'exact task id.' }],
+        returns: 'linked task or undefined.',
+      },
+      {
+        signature: 'async review(taskId: string, revision: number, outcome: \'accepted\' | \'needs-fix\'): Promise<SupervisorTaskSnapshot>',
+        description: 'Apply an owner review to a task after checking its optimistic-concurrency revision.',
+        parameters: [{ name: 'taskId', description: 'task id.' }, { name: 'revision', description: 'client revision.' }, { name: 'outcome', description: 'owner review result.' }],
+        returns: 'updated task.',
+      },
+    ],
+  },
+  {
+    key: 'supervisorExecutors',
+    summary: 'Registers provider adapters and turns routed work into host-owned runs.',
+    description: 'Registers provider adapters and turns routed work into host-owned runs. Providers must reserve a child identity before dispatch; this keeps the host writer gate active before model or CLI work begins.',
+    methods: [
+      {
+        signature: 'register(provider: SupervisorExecutorProvider): () => void',
+        description: 'Register one executor adapter using Cordis effect ownership.',
+        parameters: [{ name: 'provider', description: 'trusted adapter for a model or CLI provider family.' }],
+        returns: 'disposer that removes new-dispatch visibility.',
+      },
+      {
+        signature: 'list(): string[]',
+        description: 'Return registered executor names in insertion order.',
+        parameters: [],
+        returns: 'executor names.',
+      },
+      {
+        signature: 'get(name: string): SupervisorExecutorProvider | undefined',
+        description: 'Look up one registered executor.',
+        parameters: [{ name: 'name', description: 'executor name.' }],
+        returns: 'provider, if registered.',
+      },
+      {
+        signature: 'async dispatch(request: SupervisorExecutionRequest): Promise<SupervisorExecutionHandle>',
+        description: 'Admit and start one routed child, retaining the exact lease until terminal result and disposal settle. Provider startup failures release the lease.',
+        parameters: [{ name: 'request', description: 'routed work and caller cancellation.' }],
+        returns: 'run handle with normalized terminal result.',
+      },
+      {
+        signature: 'async cancel(runId: SupervisorExecutionHandle[\'runId\']): Promise<boolean>',
+        description: 'Cancel one exact active run.',
+        parameters: [{ name: 'runId', description: 'active run identity.' }],
+        returns: 'whether a run existed.',
+      },
+    ],
+  },
+  {
+    key: 'supervisorInteraction',
+    summary: 'Owns human command registration and the process-local notification projection.',
+    description: 'Owns human command registration and the process-local notification projection. It never changes project files and never turns a child report into acceptance.',
+    methods: [
+      {
+        signature: 'receiveIntake(request: SupervisorIntakeRequest): SupervisorIntakeResult',
+        description: 'Accept one mention from another conversation. A message id is committed before delivery, so retries cannot send the same intake twice.',
+        parameters: [{ name: 'request', description: 'source identity, stable message id, and mention text.' }],
+        returns: 'accepted, queued, or duplicate delivery observation.',
+      },
+      {
+        signature: 'listNotifications(): readonly SupervisorInteractionNotification[]',
+        description: 'Return coalesced critical notifications in first-seen order.',
+        parameters: [],
+        returns: 'notifications.',
+      },
+      {
+        signature: 'listUnreadNotifications(): readonly SupervisorInteractionNotification[]',
+        description: 'Return notifications not acknowledged by this runtime instance.',
+        parameters: [],
+        returns: 'unread notifications.',
+      },
+      {
+        signature: 'acknowledge(id: string): boolean',
+        description: 'Mark a notification key read for this process. The durable Supervisor event remains unchanged; a later projection can restore its unread fact.',
+        parameters: [{ name: 'id', description: 'notification id to acknowledge.' }],
+        returns: 'whether a notification was found.',
+      },
+      {
+        signature: 'onNotification(listener: (notification: SupervisorInteractionNotification) => void): () => void',
+        description: 'Register a listener for coalesced critical notifications.',
+        parameters: [{ name: 'listener', description: 'receives each notification.' }],
+        returns: 'disposer.',
+      },
+      {
+        signature: 'status(): SupervisorStatusView',
+        description: 'Return a bounded status view for the main assistant and UI.',
+        parameters: [],
+        returns: 'status view.',
+      },
+      {
+        signature: 'handleNotification(event: { readonly snapshot: SupervisorNotification }): void',
+        description: 'Handle one emitted durable critical notification.',
+        parameters: [{ name: 'event', description: 'notification event.' }],
+      },
+      {
+        signature: 'dispose(): void',
+        description: 'Dispose local listeners and reject future external intake.',
+        parameters: [],
+      },
+    ],
+  },
+  {
+    key: 'supervisorMemory',
+    summary: 'Runtime service holding live raw records and read-only derived memory.',
+    description: 'Runtime service holding live raw records and read-only derived memory.',
+    methods: [
+      {
+        signature: 'append(event: SupervisorEvent, seq?: number): void',
+        description: 'Append one event to the raw in-memory log; persistence is owned by the session layer.',
+        parameters: [{ name: 'event', description: 'validated Supervisor event.' }, { name: 'seq', description: 'next contiguous memory sequence, or the implicit next sequence.' }],
+        returns: 'void.',
+      },
+      {
+        signature: 'setGovernance(item: SupervisorGovernanceMemory): void',
+        description: 'Replace one project\'s current governance read; no project file is written.',
+        parameters: [{ name: 'item', description: 'current project governance state.' }],
+        returns: 'void.',
+      },
+      {
+        signature: 'rawRecords(): readonly SupervisorMemoryRecord[]',
+        description: 'Return a detached copy of the raw log for a persistence/checkpoint adapter.',
+        parameters: [],
+        returns: 'raw records in sequence order.',
+      },
+      {
+        signature: 'project(): SupervisorMemoryProjection',
+        description: 'Build the current structured projection.',
+        parameters: [],
+        returns: 'authoritative folded projection.',
+      },
+      {
+        signature: 'summaries(now: string = new Date().toISOString()): readonly SupervisorRollingSummary[]',
+        description: 'Build current rolling summaries from the authoritative event projection.',
+        parameters: [{ name: 'now', description: 'timestamp used for generated summaries.' }],
+        returns: 'bounded rolling summaries.',
+      },
+      {
+        signature: 'brief(question: string): SupervisorQueryBrief',
+        description: 'Build a bounded brief for one main-assistant question.',
+        parameters: [{ name: 'question', description: 'question being answered.' }],
+        returns: 'a bounded query brief.',
+      },
+    ],
+  },
+  {
+    key: 'supervisorOrchestrator',
+    summary: 'Captures main-assistant requests, obtains policy decisions, and drives child execution through one bounded repair loop.',
+    description: 'Captures main-assistant requests, obtains policy decisions, and drives child execution through one bounded repair loop. It never edits project files or claims owner acceptance.',
+    methods: [
+      {
+        signature: 'listTasks(): readonly SupervisorTaskSnapshot[]',
+        description: 'Return current task snapshots in capture order.',
+        parameters: [],
+        returns: 'task snapshots.',
+      },
+      {
+        signature: 'getTask(taskId: SupervisorTaskId): SupervisorTaskSnapshot | undefined',
+        description: 'Look up one task snapshot.',
+        parameters: [{ name: 'taskId', description: 'task identity.' }],
+        returns: 'task or undefined.',
+      },
+      {
+        signature: 'listApprovalBatches(): readonly SupervisorApprovalBatch[]',
+        description: 'Return approval groups awaiting one owner decision.',
+        parameters: [],
+        returns: 'pending approval batches.',
+      },
+      {
+        signature: 'onNotification(listener: SupervisorNotificationListener): () => void',
+        description: 'Register a critical-notification listener.',
+        parameters: [{ name: 'listener', description: 'receives each notification once.' }],
+        returns: 'disposer.',
+      },
+      {
+        signature: 'async capture(request: SupervisorCaptureRequest): Promise<SupervisorCaptureResult>',
+        description: 'Capture and classify one request. Approval-required routes are grouped into one batch; only policy-approved low-risk routes can auto-dispatch.',
+        parameters: [{ name: 'request', description: 'user request and execution context.' }],
+        returns: 'task, route and optional approval batch.',
+      },
+      {
+        signature: 'async approve( batchId: string, expectedRevisions: ReadonlyMap<SupervisorTaskId, number> = new Map(), ): Promise<readonly SupervisorDispatchResult[]>',
+        description: 'Approve all tasks in a batch atomically with respect to each task revision. A denied route remains non-dispatchable even after an owner response.',
+        parameters: [{ name: 'batchId', description: 'approval group identity.' }, { name: 'expectedRevisions', description: 'optional stale-write guards by task id.' }],
+        returns: 'dispatches started for approved tasks.',
+      },
+      {
+        signature: 'async approveTask(taskId: SupervisorTaskId, expectedRevision: number): Promise<SupervisorDispatchResult | undefined>',
+        description: 'Approve the single pending batch containing one task.',
+        parameters: [{ name: 'taskId', description: 'task identity.' }, { name: 'expectedRevision', description: 'revision observed by the owner.' }],
+        returns: 'the started dispatch, when auto-dispatch is enabled.',
+      },
+      {
+        signature: 'rejectTask(taskId: SupervisorTaskId, expectedRevision: number): void',
+        description: 'Reject the single pending batch containing one task.',
+        parameters: [{ name: 'taskId', description: 'task identity.' }, { name: 'expectedRevision', description: 'revision observed by the owner.' }],
+      },
+      {
+        signature: 'reject(batchId: string, expectedRevisions: ReadonlyMap<SupervisorTaskId, number> = new Map()): void',
+        description: 'Reject all tasks in an approval batch.',
+        parameters: [{ name: 'batchId', description: 'approval group identity.' }, { name: 'expectedRevisions', description: 'optional stale-write guards.' }],
+      },
+      {
+        signature: 'async dispatch(taskId: SupervisorTaskId, expectedRevision?: number): Promise<SupervisorDispatchResult>',
+        description: 'Dispatch a ready task and observe its terminal result asynchronously.',
+        parameters: [{ name: 'taskId', description: 'task identity.' }, { name: 'expectedRevision', description: 'optional optimistic-concurrency guard.' }],
+        returns: 'child run identity and running task snapshot.',
+      },
+      {
+        signature: 'async wait(runId: ReturnType<typeof SupervisorRunId>): Promise<SupervisorRunResult>',
+        description: 'Wait for one active or completed run.',
+        parameters: [{ name: 'runId', description: 'exact run identity.' }],
+        returns: 'terminal execution result.',
+      },
+      {
+        signature: 'async followUp(request: SupervisorFollowUpRequest): Promise<SupervisorDispatchResult>',
+        description: 'Apply an owner follow-up only to the revision the owner viewed.',
+        parameters: [{ name: 'request', description: 'revision-safe follow-up.' }],
+        returns: 'the started repair dispatch.',
+      },
+      {
+        signature: 'review(taskId: SupervisorTaskId, expectedRevision: number, outcome: \'accepted\' | \'needs-fix\'): SupervisorTaskSnapshot',
+        description: 'Record the owner\'s review without inferring acceptance from execution output.',
+        parameters: [{ name: 'taskId', description: 'exact task identity.' }, { name: 'expectedRevision', description: 'revision shown by the owner.' }, { name: 'outcome', description: 'explicit owner decision.' }],
+        returns: 'the updated task snapshot.',
+      },
+      {
+        signature: 'async interrupt(taskId: SupervisorTaskId): Promise<void>',
+        description: 'Cancel one exact run without touching peer projects.',
+        parameters: [{ name: 'taskId', description: 'task to interrupt.' }],
+      },
+    ],
+  },
+  {
+    key: 'supervisorProjectHost',
+    summary: 'Owns hidden Sessions for explicitly registered projects.',
+    description: 'Owns hidden Sessions for explicitly registered projects. The service never invokes a model or starts a subagent; the executor bridge acquires a lease before it creates its child, attaches exact child ownership, and releases it after the child settles. This makes the project writer lock cover admission, execution, cancellation, and teardown rather than a task-label convention.',
+    methods: [
+      {
+        signature: 'getHost(projectId: SupervisorProjectId): SupervisorProjectHostSnapshot | undefined',
+        description: 'Return a detached hidden-host description, if it is currently resident.',
+        parameters: [{ name: 'projectId', description: 'registered project identity.' }],
+        returns: 'resident host metadata, if present.',
+      },
+      {
+        signature: 'async ensureHost(projectId: SupervisorProjectId): Promise<SupervisorProjectHostSnapshot>',
+        description: 'Create or restore the exact hidden host for a registered project.',
+        parameters: [{ name: 'projectId', description: 'registered project identity.' }],
+        returns: 'durable host metadata after publication.',
+      },
+      {
+        signature: 'async admit(request: SupervisorRunAdmissionRequest): Promise<SupervisorRunLease>',
+        description: 'Reserve a project execution slot before starting its child. A read-only reviewer can coexist with a writer, but a second writer is rejected until the first exact lease releases.',
+        parameters: [{ name: 'request', description: 'project, task, child, executor and permission facts.' }],
+        returns: 'a lease that owns exactly one admitted child lifecycle.',
+      },
+      {
+        signature: 'async reconcile(recoveries: readonly SupervisorRunRecovery[]): Promise<readonly SupervisorRunLease[]>',
+        description: 'Reconcile durable links supplied by the central projection after restart. A link with a live child reclaims its writer lock; an uncertain writer is deliberately refused, so the orchestrator cannot repeat unsafe work.',
+        parameters: [{ name: 'recoveries', description: 'central-projection observations for previously linked runs.' }],
+        returns: 'leases for recovered live children; the provider attaches each exact lifecycle so settlement can release its gate.',
+      },
+    ],
+  },
+  {
+    key: 'supervisorProjectRegistry',
+    summary: 'Registry for explicit project enrollment.',
+    description: 'Registry for explicit project enrollment. Discovery accepts only caller supplied roots and performs metadata-only reads. Enrollment canonicalizes through `realpath`, emits one versioned project snapshot, and never changes project files or creates an execution session.',
+    methods: [
+      {
+        signature: 'override readonly name: string',
+        description: 'Provider identity used by the Supervisor service registry.',
+        parameters: [],
+      },
+      {
+        signature: 'list(): readonly RegisteredProject[]',
+        description: 'Return currently enrolled projects, excluding removed records.',
+        parameters: [],
+        returns: 'enrolled project snapshots.',
+      },
+      {
+        signature: 'get(id: SupervisorProjectId): RegisteredProject | undefined',
+        description: 'Look up one enrolled project by opaque id.',
+        parameters: [{ name: 'id', description: 'project identity.' }],
+        returns: 'the project, or undefined.',
+      },
+      {
+        signature: 'async suggestProjects(options: ProjectDiscoveryOptions): Promise<readonly ProjectCandidate[]>',
+        description: 'Enumerate immediate children of explicit roots. The method never reads file contents, writes a Packet, or enrolls a candidate; callers must confirm one result through registerProject.',
+        parameters: [{ name: 'options', description: 'explicit roots, item bound, and optional cancellation.' }],
+        returns: 'metadata-only candidates in deterministic path order.',
+      },
+      {
+        signature: 'async registerProject(path: string, displayName?: string): Promise<RegisteredProject>',
+        description: 'Enroll an existing directory after user confirmation. Canonical realpaths make symlink and junction aliases idempotent; a missing or non-directory path fails without publishing state.',
+        parameters: [{ name: 'path', description: 'user-confirmed directory path.' }, { name: 'displayName', description: 'optional label; defaults to the canonical basename.' }],
+        returns: 'the committed project snapshot.',
+      },
+      {
+        signature: 'async refreshStatuses(): Promise<readonly RegisteredProject[]>',
+        description: 'Re-check registered paths and publish `unavailable` only after a definite disappearance. Other I/O failures propagate so permission faults are not mistaken for missing projects.',
+        parameters: [],
+        returns: 'the refreshed project snapshots.',
+      },
+      {
+        signature: 'async removeProject(id: SupervisorProjectId): Promise<boolean>',
+        description: 'Remove only the central enrollment relation. Project files, directories, sessions, and any governance records remain untouched; repeated removal is an idempotent false result.',
+        parameters: [{ name: 'id', description: 'project identity to remove.' }],
+        returns: 'a promise resolving to true when an active registration was removed.',
+      },
+    ],
+  },
+  {
+    key: 'supervisorSession',
+    summary: 'Owns the one controller Session.',
+    description: 'Owns the one controller Session. It never creates project Sessions or executes an Agent. Durable identity is flushed before the settings id is committed, so a restart can always choose between a valid log and first boot.',
+    methods: [],
+  },
+  {
     key: 'systemPrompt',
     summary: 'Registry service for the prompt inputs assembled before each model step.',
     description: 'Registry service for the prompt inputs assembled before each model step.',
@@ -2605,6 +3069,54 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'info', description: 'the provider and published child identity.' }],
   },
   {
+    name: 'supervisor/identity',
+    mode: 'emit',
+    signature: '\'supervisor/identity\'(event: SupervisorIdentityEvent): void',
+    summary: 'Emitted when the singleton controller identity is created or restored.',
+    description: 'Emitted when the singleton controller identity is created or restored.',
+    parameters: [{ name: 'event', description: 'versioned controller identity event.' }],
+  },
+  {
+    name: 'supervisor/notification',
+    mode: 'emit',
+    signature: '\'supervisor/notification\'(event: SupervisorNotificationEvent): void',
+    summary: 'Emitted when a user-facing Supervisor notification is created or updated.',
+    description: 'Emitted when a user-facing Supervisor notification is created or updated.',
+    parameters: [{ name: 'event', description: 'versioned user-facing notification.' }],
+  },
+  {
+    name: 'supervisor/policy-applied',
+    mode: 'emit',
+    signature: '\'supervisor/policy-applied\'(event: SupervisorPolicyAppliedEvent): void',
+    summary: 'Emitted when a routing policy decision is recorded for a task.',
+    description: 'Emitted when a routing policy decision is recorded for a task.',
+    parameters: [{ name: 'event', description: 'versioned applied routing policy evidence.' }],
+  },
+  {
+    name: 'supervisor/project',
+    mode: 'emit',
+    signature: '\'supervisor/project\'(event: SupervisorProjectEvent): void',
+    summary: 'Emitted when a registered project snapshot changes.',
+    description: 'Emitted when a registered project snapshot changes.',
+    parameters: [{ name: 'event', description: 'versioned project event.' }],
+  },
+  {
+    name: 'supervisor/run-linked',
+    mode: 'emit',
+    signature: '\'supervisor/run-linked\'(event: SupervisorRunLinkedEvent): void',
+    summary: 'Emitted when a task is linked to its host and child execution sessions.',
+    description: 'Emitted when a task is linked to its host and child execution sessions.',
+    parameters: [{ name: 'event', description: 'versioned task execution association.' }],
+  },
+  {
+    name: 'supervisor/task',
+    mode: 'emit',
+    signature: '\'supervisor/task\'(event: SupervisorTaskEvent): void',
+    summary: 'Emitted when a supervised task snapshot changes.',
+    description: 'Emitted when a supervised task snapshot changes.',
+    parameters: [{ name: 'event', description: 'versioned task event.' }],
+  },
+  {
     name: 'system-prompt/assemble',
     mode: 'waterfall',
     signature: '\'system-prompt/assemble\'(this: Scoped<SystemPrompt>, assembly: PromptAssembly, context: AssembleContext, next: () => Promise<PromptAssembly>): Promise<PromptAssembly>',
@@ -2721,6 +3233,10 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'ActivePacketSummary',
+    declaration: 'export interface ActivePacketSummary {\n    readonly packetId?: string;\n    readonly contractVersion?: string;\n    readonly executionState?: string;\n    readonly stageReview?: string;\n    readonly deliveryClass?: string;\n    readonly authorityFingerprint?: string;\n    readonly oneNextAction: string;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -2759,6 +3275,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentStatus',
     declaration: 'export type AgentStatus = \'idle\' | \'running\';',
+  },
+  {
+    name: 'ApprovalMode',
+    declaration: 'export type ApprovalMode = \'auto\' | \'confirm\' | \'deny\';',
   },
   {
     name: 'ApprovalOutcome',
@@ -3009,6 +3529,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type CordisInspectRequestId = Branded<\'CordisInspectRequestId\'>;',
   },
   {
+    name: 'CostTier',
+    declaration: 'export type CostTier = \'free\' | \'low\' | \'medium\' | \'high\' | \'unknown\';',
+  },
+  {
     name: 'CreateAgentOptions',
     declaration: 'export interface CreateAgentOptions {\n    readonly sessionId: SessionId;\n    readonly meta?: {\n        readonly cwd?: string;\n        readonly parentSession?: SessionId;\n        readonly seedLength?: number;\n        readonly origin?: \'subagent\';\n        readonly delegationDepth?: number;\n        readonly agentPreset?: string;\n    };\n    readonly seed?: readonly SessionEvent[];\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
@@ -3149,6 +3673,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    system?: string;\n    tools?: ToolSchema[];\n}',
   },
   {
+    name: 'ExecutorCapabilities',
+    declaration: 'export interface ExecutorCapabilities {\n    readonly permissions: readonly PermissionCeiling[];\n    readonly background: boolean;\n    readonly cancellation: boolean;\n    readonly providers: readonly string[];\n}',
+  },
+  {
     name: 'FileDiff',
     declaration: 'export interface FileDiff {\n    path: string;\n    oldText: string | null;\n    newText: string;\n}',
   },
@@ -3251,6 +3779,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GoalView',
     declaration: 'export interface GoalView extends GoalSnapshot {\n    readonly roundsStarted: number;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n    readonly activation: GoalActivation;\n}',
+  },
+  {
+    name: 'GovernanceConflict',
+    declaration: 'export interface GovernanceConflict {\n    readonly code: \'missing-packet\' | \'duplicate-packet\' | \'invalid-packet\' | \'missing-source\' | \'fingerprint-mismatch\' | \'duplicate-work-order\' | \'corrupt-loop\';\n    readonly message: string;\n    readonly paths: readonly string[];\n}',
   },
   {
     name: 'ImageAttachmentLimits',
@@ -3441,6 +3973,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export class LlmRuntime extends Service {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
+    name: 'LoopRunSummary',
+    declaration: 'export interface LoopRunSummary {\n    readonly recordVersion?: string;\n    readonly timestamp?: string;\n    readonly stage?: number;\n    readonly loop?: number;\n    readonly role?: string;\n    readonly result?: string;\n    readonly progressDelta?: string;\n    readonly stageReview?: string;\n    readonly nextAction?: string;\n    readonly failureSignature?: string | null;\n}',
+  },
+  {
     name: 'LspHover',
     declaration: 'export interface LspHover {\n    readonly contents: string;\n    readonly range?: LspRange;\n}',
   },
@@ -3483,6 +4019,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'MemoryEvidenceReference',
+    declaration: 'export interface MemoryEvidenceReference {\n    readonly kind: \'event\' | \'run\' | \'session\' | \'governance\' | \'policy\';\n    readonly value: string;\n    readonly seq?: number;\n}',
+  },
+  {
+    name: 'MemorySourceRange',
+    declaration: 'export interface MemorySourceRange {\n    readonly start: number;\n    readonly end: number;\n}',
   },
   {
     name: 'Message',
@@ -3597,6 +4141,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface OneShotSubagentDescriptorData extends SubagentDescriptorBase {\n    readonly mode: \'one-shot\';\n    readonly label?: string;\n}',
   },
   {
+    name: 'PermissionCeiling',
+    declaration: 'export type PermissionCeiling = \'none\' | \'read\' | \'write\' | \'execute\' | \'admin\';',
+  },
+  {
     name: 'PermissionSelect',
     declaration: 'export interface PermissionSelect {\n    options: PresetOption[];\n    currentValue: string;\n}',
   },
@@ -3611,6 +4159,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PreparedReferencedMessage',
     declaration: 'export interface PreparedReferencedMessage {\n    content: ContentBlock[];\n    additionalContext?: UserMessage;\n}',
+  },
+  {
+    name: 'PreparedSupervisorExecution',
+    declaration: 'export interface PreparedSupervisorExecution {\n    readonly childSessionId: SessionId;\n    readonly start: () => Promise<SupervisorChildExecution>;\n    readonly release?: () => Promise<void>;\n}',
   },
   {
     name: 'PrepareSessionOptions',
@@ -3637,6 +4189,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type PreToolDecision = {\n    kind: \'allow\';\n} | {\n    kind: \'deny\';\n    reason: string;\n} | {\n    kind: \'ask\';\n    reason?: string;\n};',
   },
   {
+    name: 'ProjectCandidate',
+    declaration: 'export interface ProjectCandidate {\n    readonly path: string;\n    readonly realPath?: string;\n    readonly displayName: string;\n    readonly kind: ProjectPathKind;\n    readonly isWorktree: boolean;\n    readonly registeredProjectId?: SupervisorProjectId;\n    readonly reason?: string;\n}',
+  },
+  {
+    name: 'ProjectDiscoveryOptions',
+    declaration: 'export interface ProjectDiscoveryOptions {\n    readonly roots: readonly string[];\n    readonly maxCandidatesPerRoot?: number;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'ProjectGovernanceState',
+    declaration: 'export interface ProjectGovernanceState {\n    readonly workspacePath: string;\n    readonly docsDirectory?: string;\n    readonly packetPath?: string;\n    readonly workOrderPath?: string;\n    readonly loopRunsPath?: string;\n    readonly packet?: ActivePacketSummary;\n    readonly workOrder?: WorkOrderSummary;\n    readonly recentLoops: readonly LoopRunSummary[];\n    readonly authoritySources: readonly string[];\n    readonly authorityFingerprint?: string;\n    readonly conflicts: readonly GovernanceConflict[];\n    readonly status: \'valid\' | \'missing\' | \'conflicted\' | \'corrupt\';\n}',
+  },
+  {
     name: 'ProjectionChangeListener',
     declaration: 'export type ProjectionChangeListener = (session: Session, key: Extract<keyof SessionProjectionMap, string>, value: unknown, seq: number) => void;',
   },
@@ -3655,6 +4219,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ProjectionSnapshot',
     declaration: 'export interface ProjectionSnapshot {\n    asOfSeq: number;\n    values: Partial<SessionProjectionMap>;\n}',
+  },
+  {
+    name: 'ProjectPathKind',
+    declaration: 'export type ProjectPathKind = \'directory\' | \'symlink\' | \'junction\' | \'missing\' | \'not-directory\' | \'inaccessible\';',
   },
   {
     name: 'PromptAssembly',
@@ -3681,6 +4249,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface PruneResult {\n    readonly pruned: readonly PrunedEntry[];\n    readonly charsRemoved: number;\n}',
   },
   {
+    name: 'RawExecutionResult',
+    declaration: 'export interface RawExecutionResult {\n    readonly stopReason: \'completed\' | \'aborted\' | \'error\' | \'max-tokens\' | \'refusal\' | (string & {});\n    readonly output?: readonly ContentBlock[];\n    readonly diagnostic?: string;\n    readonly timedOut?: boolean;\n    readonly signal?: string | null;\n    readonly exitCode?: number | null;\n}',
+  },
+  {
     name: 'ReadFileLine',
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
@@ -3699,6 +4271,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
+  },
+  {
+    name: 'RegisteredProject',
+    declaration: 'export type RegisteredProject = SupervisorProjectSnapshot;',
   },
   {
     name: 'ReplayEnvelope',
@@ -3741,6 +4317,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ResolvedRetryPolicy = ResolvedNormalRetryPolicy | ResolvedAlwaysRetryPolicy;',
   },
   {
+    name: 'ResolvedRouteDecision',
+    declaration: 'export interface ResolvedRouteDecision {\n    readonly decision: RouteDecision;\n    readonly policyHash: string;\n    readonly matchedRuleId?: string;\n    readonly approval: ApprovalMode;\n    readonly dispatchable: boolean;\n    readonly permissionCeiling: PermissionCeiling;\n    readonly timeoutMs: number;\n    readonly review?: ReviewPipeline;\n    readonly fallbackUsed: boolean;\n}',
+  },
+  {
     name: 'ResolvedSubagentStartRequest',
     declaration: 'export interface ResolvedSubagentStartRequest extends SubagentStartRequest {\n    readonly descriptor: SubagentDescriptorData;\n}',
   },
@@ -3751,6 +4331,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResumeAgentOptions',
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
+  },
+  {
+    name: 'ReviewCondition',
+    declaration: 'export type ReviewCondition = \'always\' | \'onFailure\' | \'highRisk\' | \'whenRequested\';',
+  },
+  {
+    name: 'ReviewPipeline',
+    declaration: 'export interface ReviewPipeline {\n    readonly strategy: ReviewStrategy;\n    readonly condition: ReviewCondition;\n    readonly reviewer?: RouteTarget;\n    readonly reviewers?: readonly RouteTarget[];\n    readonly synthesis?: RouteTarget;\n}',
+  },
+  {
+    name: 'ReviewStrategy',
+    declaration: 'export type ReviewStrategy = \'single\' | \'primary-reviewer\' | \'parallel-synthesis\';',
+  },
+  {
+    name: 'RouteDecision',
+    declaration: 'export interface RouteDecision {\n    readonly taskId: SupervisorTaskId;\n    readonly policyVersion: string;\n    readonly executor: string;\n    readonly provider: string;\n    readonly model?: string;\n    readonly fallback: readonly string[];\n    readonly reason: string;\n    readonly costTier: \'free\' | \'low\' | \'medium\' | \'high\' | \'unknown\';\n    readonly requiresApproval: boolean;\n}',
+  },
+  {
+    name: 'RouteRequest',
+    declaration: 'export interface RouteRequest {\n    readonly taskId: SupervisorTaskId;\n    readonly projectId?: SupervisorProjectId;\n    readonly projectPath?: string;\n    readonly domain?: string;\n    readonly taskType?: string;\n    readonly language?: string;\n    readonly capabilities?: readonly string[];\n    readonly requestedPermission?: PermissionCeiling;\n    readonly highRisk?: boolean;\n    readonly paid?: boolean;\n    readonly credentials?: boolean;\n    readonly production?: boolean;\n    readonly destructive?: boolean;\n    readonly failed?: boolean;\n    readonly reviewRequested?: boolean;\n    readonly now?: Date | string | number;\n    readonly estimatedCostUnits?: number;\n    readonly usage?: RouteUsage;\n    readonly availableExecutors?: readonly string[];\n    readonly availableProviders?: readonly string[];\n    readonly availableModels?: readonly string[];\n}',
+  },
+  {
+    name: 'RouteTarget',
+    declaration: 'export interface RouteTarget {\n    readonly executor: string;\n    readonly provider: string;\n    readonly model?: string;\n    readonly costTier: CostTier;\n}',
+  },
+  {
+    name: 'RouteUsage',
+    declaration: 'export interface RouteUsage {\n    readonly spentCostUnits?: number;\n    readonly completedRuns?: number;\n    readonly activeConcurrent?: number;\n}',
   },
   {
     name: 'RpcError',
@@ -4365,6 +4973,226 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubprocessTerminalSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
   },
   {
+    name: 'SupervisorApiTask',
+    declaration: 'export interface SupervisorApiTask extends SupervisorTaskSnapshot {\n    readonly runs: readonly SupervisorRunLink[];\n}',
+  },
+  {
+    name: 'SupervisorApprovalBatch',
+    declaration: 'export interface SupervisorApprovalBatch {\n    readonly id: string;\n    readonly taskIds: readonly SupervisorTaskId[];\n    readonly createdAt: string;\n}',
+  },
+  {
+    name: 'SupervisorCaptureRequest',
+    declaration: 'export interface SupervisorCaptureRequest {\n    readonly projectId: SupervisorTaskSnapshot[\'projectId\'];\n    readonly title: string;\n    readonly description: string;\n    readonly nextAction: string;\n    readonly prompt: readonly ContentBlock[];\n    readonly parent: Agent;\n    readonly route: Omit<RouteRequest, \'taskId\' | \'projectId\' | \'projectPath\'>;\n    readonly permission: PermissionCeiling;\n    readonly background?: boolean;\n}',
+  },
+  {
+    name: 'SupervisorCaptureResult',
+    declaration: 'export interface SupervisorCaptureResult {\n    readonly task: SupervisorTaskSnapshot;\n    readonly route: ResolvedRouteDecision;\n    readonly approvalBatchId?: string;\n}',
+  },
+  {
+    name: 'SupervisorChildExecution',
+    declaration: 'export interface SupervisorChildExecution {\n    readonly childSessionId: SessionId;\n    readonly result: Promise<RawExecutionResult>;\n    dispose(): Promise<void>;\n}',
+  },
+  {
+    name: 'SupervisorChildLifecycle',
+    declaration: 'export interface SupervisorChildLifecycle {\n    cancel(): void | Promise<void>;\n    readonly done: Promise<void>;\n}',
+  },
+  {
+    name: 'SupervisorDispatchResult',
+    declaration: 'export interface SupervisorDispatchResult {\n    readonly task: SupervisorTaskSnapshot;\n    readonly runId: SupervisorRunId;\n}',
+  },
+  {
+    name: 'SupervisorEvent',
+    declaration: 'export type SupervisorEvent = {\n    readonly type: \'supervisor/identity\';\n    readonly version: typeof SUPERVISOR_EVENT_VERSION;\n    readonly snapshot: SupervisorIdentitySnapshot;\n} | {\n    readonly type: \'supervisor/project\';\n    readonly version: typeof SUPERVISOR_EVENT_VERSION;\n    readonly snapshot: SupervisorProjectSnapshot;\n} | {\n    readonly type: \'supervisor/task\';\n    readonly version: typeof SUPERVISOR_EVENT_VERSION;\n    readonly snapshot: SupervisorTaskSnapshot;\n} | {\n    readonly type: \'supervisor/run-linked\';\n    readonly version: typeof SUPERVISOR_EVENT_VERSION;\n    readonly snapshot: SupervisorRunLink;\n} | {\n    readonly type: \'supervisor/policy-applied\';\n    readonly version: typeof SUPERVISOR_EVENT_VERSION;\n    readonly snapshot: SupervisorPolicyApplied;\n} | {\n    readonly type: \'supervisor/notification\';\n    readonly version: typeof SUPERVISOR_EVENT_VERSION;\n    readonly snapshot: SupervisorNotification;\n};',
+  },
+  {
+    name: 'SupervisorExecutionHandle',
+    declaration: 'export interface SupervisorExecutionHandle {\n    readonly runId: SupervisorRunId;\n    readonly childSessionId: SessionId;\n    readonly lease: SupervisorRunLease;\n    readonly result: Promise<SupervisorExecutionResult>;\n    cancel(): Promise<void>;\n}',
+  },
+  {
+    name: 'SupervisorExecutionRequest',
+    declaration: 'export interface SupervisorExecutionRequest {\n    readonly projectId: SupervisorProjectId;\n    readonly taskId: SupervisorTaskId;\n    readonly runId: SupervisorRunId;\n    readonly prompt: readonly ContentBlock[];\n    readonly parent: Agent;\n    readonly route: ResolvedRouteDecision;\n    readonly permission: PermissionCeiling;\n    readonly background: boolean;\n    readonly signal: AbortSignal;\n}',
+  },
+  {
+    name: 'SupervisorExecutionResult',
+    declaration: 'export interface SupervisorExecutionResult {\n    readonly status: SupervisorExecutionStatus;\n    readonly output: readonly ContentBlock[];\n    readonly diagnostic?: string;\n    readonly timedOut: boolean;\n    readonly signal?: string | null;\n    readonly exitCode?: number | null;\n}',
+  },
+  {
+    name: 'SupervisorExecutionStatus',
+    declaration: 'export type SupervisorExecutionStatus = \'completed\' | \'failed\' | \'cancelled\' | \'timeout\' | \'max-tokens\';',
+  },
+  {
+    name: 'SupervisorExecutor',
+    declaration: 'export interface SupervisorExecutor {\n    readonly name: string;\n}',
+  },
+  {
+    name: 'SupervisorExecutorProvider',
+    declaration: 'export interface SupervisorExecutorProvider {\n    readonly name: string;\n    readonly capabilities: ExecutorCapabilities;\n    prepare(request: SupervisorExecutionRequest): Promise<PreparedSupervisorExecution>;\n}',
+  },
+  {
+    name: 'SupervisorFollowUpRequest',
+    declaration: 'export interface SupervisorFollowUpRequest {\n    readonly taskId: SupervisorTaskId;\n    readonly expectedRevision: number;\n    readonly prompt: readonly ContentBlock[];\n    readonly nextAction: string;\n}',
+  },
+  {
+    name: 'SupervisorGovernanceMemory',
+    declaration: 'export interface SupervisorGovernanceMemory {\n    readonly projectId: SupervisorProjectId;\n    readonly state: ProjectGovernanceState;\n}',
+  },
+  {
+    name: 'SupervisorId',
+    declaration: 'export type SupervisorId = Branded<\'SupervisorId\'>;',
+  },
+  {
+    name: 'SupervisorIdentityEvent',
+    declaration: 'export type SupervisorIdentityEvent = Extract<SupervisorEvent, {\n    readonly type: \'supervisor/identity\';\n}>;',
+  },
+  {
+    name: 'SupervisorIdentitySnapshot',
+    declaration: 'export interface SupervisorIdentitySnapshot {\n    readonly revision: number;\n    readonly id: SupervisorId;\n    readonly sessionId: SessionId;\n    readonly createdAt: string;\n}',
+  },
+  {
+    name: 'SupervisorIntakeRequest',
+    declaration: 'export interface SupervisorIntakeRequest {\n    readonly messageId: string;\n    readonly sourceSessionId: SessionId;\n    readonly text: string;\n    readonly wakeup?: boolean;\n}',
+  },
+  {
+    name: 'SupervisorIntakeResult',
+    declaration: 'export interface SupervisorIntakeResult {\n    readonly status: \'accepted\' | \'queued\' | \'duplicate\';\n    readonly messageId: string;\n    readonly supervisorSessionId: SessionId;\n}',
+  },
+  {
+    name: 'SupervisorInteractionNotification',
+    declaration: 'export interface SupervisorInteractionNotification extends SupervisorNotification {\n    readonly count: number;\n}',
+  },
+  {
+    name: 'SupervisorMemoryProjection',
+    declaration: 'export interface SupervisorMemoryProjection {\n    readonly supervisor: SupervisorProjection;\n    readonly governance: ReadonlyMap<string, ProjectGovernanceState>;\n    readonly sourceSeq: number;\n}',
+  },
+  {
+    name: 'SupervisorMemoryRecord',
+    declaration: 'export interface SupervisorMemoryRecord {\n    readonly seq: number;\n    readonly event: SupervisorEvent;\n}',
+  },
+  {
+    name: 'SupervisorNotification',
+    declaration: 'export interface SupervisorNotification {\n    readonly revision: number;\n    readonly id: SupervisorNotificationId;\n    readonly taskId?: SupervisorTaskId;\n    readonly projectId?: SupervisorProjectId;\n    readonly kind: \'owner-decision\' | \'blocked\' | \'failed\' | \'ready-for-review\' | \'review-failed\' | \'policy-gate\';\n    readonly message: string;\n    readonly unread: boolean;\n    readonly createdAt: string;\n}',
+  },
+  {
+    name: 'SupervisorNotificationEvent',
+    declaration: 'export type SupervisorNotificationEvent = Extract<SupervisorEvent, {\n    readonly type: \'supervisor/notification\';\n}>;',
+  },
+  {
+    name: 'SupervisorNotificationId',
+    declaration: 'export type SupervisorNotificationId = Branded<\'SupervisorNotificationId\'>;',
+  },
+  {
+    name: 'SupervisorNotificationListener',
+    declaration: 'export type SupervisorNotificationListener = (notification: SupervisorOrchestratorNotification) => void;',
+  },
+  {
+    name: 'SupervisorOrchestratorNotification',
+    declaration: 'export interface SupervisorOrchestratorNotification {\n    readonly taskId: SupervisorTaskId;\n    readonly kind: \'owner-decision\' | \'blocked\' | \'failed\' | \'ready-for-review\' | \'policy-gate\';\n    readonly message: string;\n    readonly createdAt: string;\n}',
+  },
+  {
+    name: 'SupervisorPolicyApplied',
+    declaration: 'export interface SupervisorPolicyApplied {\n    readonly revision: number;\n    readonly taskId: SupervisorTaskId;\n    readonly policyVersion: string;\n    readonly executor: string;\n    readonly model?: string;\n    readonly requiresApproval: boolean;\n    readonly reason: string;\n}',
+  },
+  {
+    name: 'SupervisorPolicyAppliedEvent',
+    declaration: 'export type SupervisorPolicyAppliedEvent = Extract<SupervisorEvent, {\n    readonly type: \'supervisor/policy-applied\';\n}>;',
+  },
+  {
+    name: 'SupervisorProjectEvent',
+    declaration: 'export type SupervisorProjectEvent = Extract<SupervisorEvent, {\n    readonly type: \'supervisor/project\';\n}>;',
+  },
+  {
+    name: 'SupervisorProjectHostSnapshot',
+    declaration: 'export interface SupervisorProjectHostSnapshot {\n    readonly projectId: SupervisorProjectId;\n    readonly sessionId: SessionId;\n    readonly cwd: string;\n}',
+  },
+  {
+    name: 'SupervisorProjectId',
+    declaration: 'export type SupervisorProjectId = Branded<\'SupervisorProjectId\'>;',
+  },
+  {
+    name: 'SupervisorProjection',
+    declaration: 'export interface SupervisorProjection {\n    readonly identity: import(\'./types.ts\').SupervisorIdentitySnapshot | undefined;\n    readonly projects: ReadonlyMap<string, SupervisorProjectSnapshot>;\n    readonly tasks: ReadonlyMap<string, SupervisorTaskSnapshot>;\n    readonly runs: ReadonlyMap<string, SupervisorRunLink>;\n    readonly policies: ReadonlyMap<string, SupervisorPolicyApplied>;\n    readonly notifications: ReadonlyMap<string, SupervisorNotification>;\n}',
+  },
+  {
+    name: 'SupervisorProjectProvider',
+    declaration: 'export interface SupervisorProjectProvider {\n    readonly name: string;\n}',
+  },
+  {
+    name: 'SupervisorProjectSnapshot',
+    declaration: 'export interface SupervisorProjectSnapshot {\n    readonly id: SupervisorProjectId;\n    readonly revision: number;\n    readonly displayName: string;\n    readonly realPath: string;\n    readonly status: SupervisorProjectStatus;\n    readonly registeredAt: string;\n}',
+  },
+  {
+    name: 'SupervisorProjectStatus',
+    declaration: 'export type SupervisorProjectStatus = \'registered\' | \'unavailable\' | \'removed\';',
+  },
+  {
+    name: 'SupervisorQueryBrief',
+    declaration: 'export interface SupervisorQueryBrief {\n    readonly question: string;\n    readonly generatedAt: string;\n    readonly summaries: readonly SupervisorRollingSummary[];\n    readonly notifications: readonly string[];\n    readonly sourceSeq: number;\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'SupervisorReporter',
+    declaration: 'export interface SupervisorReporter {\n    readonly name: string;\n}',
+  },
+  {
+    name: 'SupervisorRollingSummary',
+    declaration: 'export interface SupervisorRollingSummary {\n    readonly projectId: SupervisorProjectId;\n    readonly taskIds: readonly SupervisorTaskId[];\n    readonly currentState: string;\n    readonly projectRevision: number;\n    readonly taskRevisions: Readonly<Record<string, number>>;\n    readonly userDecisions: readonly string[];\n    readonly pendingConfirmations: readonly string[];\n    readonly blockers: readonly string[];\n    readonly uniqueNextSteps: readonly string[];\n    readonly evidence: readonly MemoryEvidenceReference[];\n    readonly sourceRange: MemorySourceRange;\n    readonly authorityFingerprint?: string;\n    readonly policyVersion?: string;\n    readonly generatedAt: string;\n}',
+  },
+  {
+    name: 'SupervisorRouter',
+    declaration: 'export interface SupervisorRouter {\n    readonly name: string;\n}',
+  },
+  {
+    name: 'SupervisorRunAdmissionRequest',
+    declaration: 'export interface SupervisorRunAdmissionRequest {\n    readonly projectId: SupervisorProjectId;\n    readonly taskId: SupervisorTaskId;\n    readonly runId: SupervisorRunId;\n    readonly childSessionId: SessionId;\n    readonly executor: string;\n    readonly model?: string;\n    readonly writeAccess: boolean;\n}',
+  },
+  {
+    name: 'SupervisorRunId',
+    declaration: 'export type SupervisorRunId = Branded<\'SupervisorRunId\'>;',
+  },
+  {
+    name: 'SupervisorRunLease',
+    declaration: 'export interface SupervisorRunLease {\n    readonly link: SupervisorRunLink;\n    attach(lifecycle: SupervisorChildLifecycle): void;\n    cancel(): Promise<void>;\n    release(): Promise<void>;\n}',
+  },
+  {
+    name: 'SupervisorRunLink',
+    declaration: 'export interface SupervisorRunLink {\n    readonly revision: number;\n    readonly runId: SupervisorRunId;\n    readonly taskId: SupervisorTaskId;\n    readonly projectId: SupervisorProjectId;\n    readonly hostSessionId: SessionId;\n    readonly childSessionId: SessionId;\n    readonly executor: string;\n    readonly model?: string;\n    readonly writeAccess: boolean;\n}',
+  },
+  {
+    name: 'SupervisorRunLinkedEvent',
+    declaration: 'export type SupervisorRunLinkedEvent = Extract<SupervisorEvent, {\n    readonly type: \'supervisor/run-linked\';\n}>;',
+  },
+  {
+    name: 'SupervisorRunRecovery',
+    declaration: 'export interface SupervisorRunRecovery {\n    readonly link: SupervisorRunLink;\n    readonly childIsLive: boolean;\n}',
+  },
+  {
+    name: 'SupervisorRunResult',
+    declaration: 'export interface SupervisorRunResult {\n    readonly taskId: SupervisorTaskId;\n    readonly runId: SupervisorRunId;\n    readonly attempt: number;\n    readonly result: SupervisorExecutionResult;\n    readonly failureSignature?: string;\n}',
+  },
+  {
+    name: 'SupervisorStatusResponse',
+    declaration: 'export interface SupervisorStatusResponse {\n    readonly identity: string;\n    readonly supervisorSessionId?: string;\n    readonly projects: readonly SupervisorProjectSnapshot[];\n    readonly tasks: readonly SupervisorApiTask[];\n    readonly notifications: readonly SupervisorNotification[];\n}',
+  },
+  {
+    name: 'SupervisorStatusView',
+    declaration: 'export interface SupervisorStatusView {\n    readonly identity: string;\n    readonly supervisorSessionId?: string;\n    readonly projects: number;\n    readonly tasks: number;\n    readonly unreadNotifications: number;\n    readonly taskStates: Readonly<Record<string, number>>;\n}',
+  },
+  {
+    name: 'SupervisorTaskEvent',
+    declaration: 'export type SupervisorTaskEvent = Extract<SupervisorEvent, {\n    readonly type: \'supervisor/task\';\n}>;',
+  },
+  {
+    name: 'SupervisorTaskId',
+    declaration: 'export type SupervisorTaskId = Branded<\'SupervisorTaskId\'>;',
+  },
+  {
+    name: 'SupervisorTaskSnapshot',
+    declaration: 'export interface SupervisorTaskSnapshot {\n    readonly id: SupervisorTaskId;\n    readonly revision: number;\n    readonly projectId: SupervisorProjectId;\n    readonly title: string;\n    readonly description: string;\n    readonly status: SupervisorTaskStatus;\n    readonly nextAction: string;\n    readonly blocker?: string;\n}',
+  },
+  {
+    name: 'SupervisorTaskStatus',
+    declaration: 'export type SupervisorTaskStatus = \'Captured\' | \'Classified\' | \'AwaitingApproval\' | \'Ready\' | \'Dispatched\' | \'Running\' | \'NeedsOwnerDecision\' | \'NeedsFix\' | \'ReadyForReview\' | \'Failed\' | \'Cancelled\' | \'Accepted\';',
+  },
+  {
     name: 'SurfaceEvent',
     declaration: 'export type SurfaceEvent = SessionEvent<SurfaceEventType> & {\n    surfaceOp: SurfaceOp;\n};',
   },
@@ -4831,6 +5659,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
+  },
+  {
+    name: 'WorkOrderSummary',
+    declaration: 'export interface WorkOrderSummary {\n    readonly relativePath: string;\n    readonly title: string;\n    readonly workOrderId?: string;\n    readonly owner?: string;\n    readonly outcome: string;\n    readonly nonGoal: string;\n}',
   },
 ]
 

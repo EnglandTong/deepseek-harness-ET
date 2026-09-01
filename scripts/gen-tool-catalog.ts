@@ -624,19 +624,31 @@ interface CatalogPackage {
 export type ToolCatalog = CatalogPackage[]
 
 /**
+ * `tool-*` directories whose plugin registers human commands only and never a
+ * model-facing `ctx.tools` schema, so it cannot appear on this page (which is
+ * scoped to model-facing tools). Each entry must name where its commands are
+ * documented instead.
+ */
+const COMMAND_ONLY_DIRS: ReadonlyMap<string, string> = new Map([
+  ['tool-supervisor', 'packages/supervisor/tool-supervisor/README.md'],
+])
+
+/**
  * Assert the boot manifest covers every shipped tool package on disk (a
  * `tool-*` leaf under `packages/`).
  * Booting has no source declaration to enumerate, so this glob restores the
  * "a new tool cannot be silently undocumented" guarantee: an unlisted package
  * fails the generator (and the freshness gate) until it is added to
- * {@link TOOL_PACKAGES}. Exported for a direct negative test.
+ * {@link TOOL_PACKAGES} — unless it is command-only ({@link COMMAND_ONLY_DIRS}),
+ * in which case its commands must be documented at the mapped location.
+ * Exported for a direct negative test.
  *
  * `scanRoot` defaults to the repo root; a test may point it at a fixture tree.
  */
 export function assertManifestComplete(packages: ToolPackage[] = TOOL_PACKAGES, scanRoot: string = root): void {
   const onDisk = globSync('packages/*/tool-*', { cwd: scanRoot }).map(p => basename(p)).sort()
   const listed = new Set(packages.map(p => p.dir))
-  const missing = onDisk.filter(dir => !listed.has(dir))
+  const missing = onDisk.filter(dir => !listed.has(dir) && !COMMAND_ONLY_DIRS.has(dir))
   if (missing.length > 0) {
     throw new Error(
       `gen-tool-catalog: ${missing.length} tool package(s) not in the boot manifest: ${missing.join(', ')}. `

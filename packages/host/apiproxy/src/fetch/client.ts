@@ -67,6 +67,20 @@ import {
   subagentListValueSchema,
   subagentPromptValueSchema,
 } from '../api/subagents.schema.ts'
+export type {
+  SupervisorActionKind, SupervisorActionReceipt, SupervisorActionRequest,
+  SupervisorChildSessionView, SupervisorIdentityView, SupervisorNotificationView,
+  SupervisorProjectView, SupervisorRunView, SupervisorTaskView,
+} from '../api/supervisor.ts'
+import {
+  supervisorActionValueSchema,
+  supervisorChildSessionValueSchema,
+  supervisorIdentityValueSchema,
+  supervisorNotificationsValueSchema,
+  supervisorProjectsValueSchema,
+  supervisorRunsValueSchema,
+  supervisorTasksValueSchema,
+} from '../api/supervisor.schema.ts'
 
 /**
  * Client consumption face of the contract (shape a): same domain tree as ApiProxy, but unary
@@ -161,6 +175,15 @@ export interface IApiClient {
     models(payload: RequestPayload<'llm.models'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.models'>>>
     discoverModels(payload: RequestPayload<'llm.discoverModels'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.discoverModels'>>>
   }
+  supervisor?: {
+    identity(payload: RequestPayload<'supervisor.identity'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.identity'>>>
+    projects(payload: RequestPayload<'supervisor.projects'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.projects'>>>
+    tasks(payload: RequestPayload<'supervisor.tasks'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.tasks'>>>
+    runs(payload: RequestPayload<'supervisor.runs'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.runs'>>>
+    notifications(payload: RequestPayload<'supervisor.notifications'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.notifications'>>>
+    childSession(payload: RequestPayload<'supervisor.childSession'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.childSession'>>>
+    action(payload: RequestPayload<'supervisor.action'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'supervisor.action'>>>
+  }
   /** client-response passthrough (rpcId is a backfill of the server-request's id — never minted here). */
   respond(message: ClientResponse, signal?: AbortSignal): Promise<RpcReceipt>
 }
@@ -222,6 +245,13 @@ const UNARY_VALUE_SCHEMAS: { [K in keyof RpcMethodMap]: z.ZodType<Wire<ResponseV
   'llm.providers': llmProvidersValueSchema,
   'llm.models': llmModelsValueSchema,
   'llm.discoverModels': llmDiscoverModelsValueSchema,
+  'supervisor.identity': supervisorIdentityValueSchema,
+  'supervisor.projects': supervisorProjectsValueSchema,
+  'supervisor.tasks': supervisorTasksValueSchema,
+  'supervisor.runs': supervisorRunsValueSchema,
+  'supervisor.notifications': supervisorNotificationsValueSchema,
+  'supervisor.childSession': supervisorChildSessionValueSchema,
+  'supervisor.action': supervisorActionValueSchema,
 }
 
 /** Default timeout for bounded unary calls (rpc-compare 2026-07-19: a hung host must not leave callers pending forever). */
@@ -498,6 +528,16 @@ export abstract class AbstractApiClient implements IApiClient {
     providers: (payload, signal) => this.callUnary('llm.providers', payload, signal),
     models: (payload, signal) => this.callUnary('llm.models', payload, signal),
     discoverModels: (payload, signal) => this.callUnary('llm.discoverModels', payload, signal),
+  }
+
+  readonly supervisor: NonNullable<IApiClient['supervisor']> = {
+    identity: (payload, signal) => this.callUnary('supervisor.identity', payload, signal),
+    projects: (payload, signal) => this.callUnary('supervisor.projects', payload, signal),
+    tasks: (payload, signal) => this.callUnary('supervisor.tasks', payload, signal),
+    runs: (payload, signal) => this.callUnary('supervisor.runs', payload, signal),
+    notifications: (payload, signal) => this.callUnary('supervisor.notifications', payload, signal),
+    childSession: (payload, signal) => this.callUnary('supervisor.childSession', payload, signal),
+    action: (payload, signal) => this.callUnary('supervisor.action', payload, signal),
   }
 
   readonly events: IApiClient['events'] = {

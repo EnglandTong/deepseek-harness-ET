@@ -15,6 +15,8 @@ import type { ConversationSnapshot } from './sessions/conversation.ts'
 import type { UseProjection } from './sessions/projection-store.ts'
 import { ConversationEventRegistry } from './conversation/event-registry.ts'
 import { ConversationViewRegistry } from './conversation/view-registry.ts'
+import { SupervisorRuntime } from './supervisor.ts'
+import type { SupervisorClient } from './supervisor.ts'
 
 export { isAppendSurfaceEvent, isReplacementSurfaceEvent } from '@deepseek-ai/dsh-session/surface'
 
@@ -62,6 +64,10 @@ export type {
 export type { SessionListPhase, SessionSearchResultItem, SubagentCatalogSnapshot } from './sessions/manager.ts'
 export type { SubagentAddress, JobView } from '@deepseek-ai/dsh-client-connection/client'
 export type { WorkspaceListPhase } from './workspaces/manager.ts'
+export { SupervisorRuntime } from './supervisor.ts'
+export type {
+  SupervisorClient, SupervisorClientState,
+} from './supervisor.ts'
 export type { WorkspaceListState } from './workspaces/service.ts'
 export type {
   DirectoryEntry, DirectoryListing, WorkspaceId, WorkspaceView,
@@ -176,6 +182,8 @@ declare module '@deepseek-ai/cordis' {
     sessions: import('./contract/sessions.ts').ISessions
     /** The outward face only; the concrete service stays inside the runtime. */
     workspaces: import('./contract/workspaces.ts').IWorkspaces
+    /** Host-backed Personal Supervisor projection and action port. */
+    supervisor: SupervisorClient
   }
 }
 
@@ -197,6 +205,12 @@ export function apply(ctx: Context): void {
     identity: candidate => sessions.scopeOf(candidate),
   })
   const workspaces = new WorkspaceRuntime(ctx, connection.api, sessions)
+  const supervisor = new SupervisorRuntime(connection.api)
+  ctx.reflect.provide('supervisor', supervisor, undefined)
+  ctx.effect(() => {
+    void supervisor.refresh()
+    return () => {}
+  }, 'runtime: initial Supervisor refresh')
   ctx.effect(
     () => workspaces.startInitialSelection(),
     'runtime: initial Workspace selection',

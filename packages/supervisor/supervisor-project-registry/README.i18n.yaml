@@ -1,0 +1,4 @@
+# Bilingual-pair consistency record for the project registry README.
+# Run `pnpm run verify-translation-pairing --write packages/supervisor/supervisor-project-registry/README.md` after either side changes.
+README.md: 40240f5c74148f89526dabc38d782d36c8b7de40
+README.zh.md: d0bc8a305c2513536a10711dece9714acc2d6efd

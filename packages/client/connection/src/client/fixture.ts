@@ -2923,6 +2923,15 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         ),
       ),
     },
+    supervisor: {
+      identity: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+      projects: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+      tasks: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+      runs: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+      notifications: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+      childSession: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+      action: request => err(request, { code: 'supervisor-unavailable', message: 'fixture Supervisor is unavailable', details: { reason: 'fixture' } }),
+    },
     events: {
       async *mux(_request, signal) {
         const conn = new FxInbox<MuxFrame>()
@@ -3227,6 +3236,13 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'llm.providers': return this.api.llm.providers(request)
       case 'llm.models': return this.api.llm.models(request)
       case 'llm.discoverModels': return this.api.llm.discoverModels(request, signal)
+      case 'supervisor.identity': return this.api.supervisor.identity(request)
+      case 'supervisor.projects': return this.api.supervisor.projects(request)
+      case 'supervisor.tasks': return this.api.supervisor.tasks(request)
+      case 'supervisor.runs': return this.api.supervisor.runs(request)
+      case 'supervisor.notifications': return this.api.supervisor.notifications(request)
+      case 'supervisor.childSession': return this.api.supervisor.childSession(request)
+      case 'supervisor.action': return this.api.supervisor.action(request)
     }
   }
 

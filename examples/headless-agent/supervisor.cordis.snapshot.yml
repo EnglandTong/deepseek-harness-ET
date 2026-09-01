@@ -1,0 +1,84 @@
+# Keyless Personal Supervisor composition for the durable-ledger snapshot.
+#
+# The base profile supplies settings, credentials, persistence, and the agent
+# spine; every model-facing production tool is disabled here so the controller
+# can only reach Supervisor commands. Routing and execution come from
+# example-owned fixtures, so the scenario needs no API key and dials no model.
+
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./cordis.yml
+    patches:
+      # The controller never edits, shells, delegates to a real subagent, or
+      # runs a workflow: those consumers are removed rather than sandboxed.
+      - id: tool-fs
+        name: '@deepseek-ai/dsh-tool-fs'
+        disabled: true
+      - id: tool-subagent
+        name: '@deepseek-ai/dsh-tool-subagent'
+        disabled: true
+      - id: tool-subagent-fork
+        name: '@deepseek-ai/dsh-tool-subagent'
+        disabled: true
+      - id: tool-subagent-control
+        name: '@deepseek-ai/dsh-tool-subagent-control'
+        disabled: true
+      - id: tool-subagent-report
+        name: '@deepseek-ai/dsh-tool-subagent-report'
+        disabled: true
+      - id: tool-workflow
+        name: '@deepseek-ai/dsh-tool-workflow'
+        disabled: true
+      - id: tool-ralph
+        name: '@deepseek-ai/dsh-tool-ralph'
+        disabled: true
+      - id: tool-todo
+        name: '@deepseek-ai/dsh-tool-todo'
+        disabled: true
+      - insert:
+          # Slash-command surface used by the driver for owner operations.
+          - id: commands
+            name: '@deepseek-ai/dsh-commands'
+
+          # Controller services, mirroring the bundle patch order. The API and
+          # browser dashboard entries are excluded because this driver has
+          # neither a Typert gateway nor a client bundle.
+          - id: supervisor
+            name: '@deepseek-ai/dsh-supervisor'
+          - id: supervisor-session
+            name: '@deepseek-ai/dsh-supervisor-session'
+          - id: supervisor-project-registry
+            name: '@deepseek-ai/dsh-supervisor-project-registry'
+            config:
+              maxCandidatesPerRoot: 8
+          - id: supervisor-project-host
+            name: '@deepseek-ai/dsh-supervisor-project-host'
+          - id: supervisor-executors
+            name: '@deepseek-ai/dsh-supervisor-executor-subagent'
+          - id: supervisor-orchestrator
+            name: '@deepseek-ai/dsh-supervisor-orchestrator'
+            config:
+              maxRepairAttempts: 2
+              autoDispatch: true
+              retryOnFailure: true
+          - id: supervisor-memory
+            name: '@deepseek-ai/dsh-supervisor-memory'
+            config:
+              maxSummaryChars: 1200
+              maxBriefSummaries: 12
+              maxBriefNotifications: 12
+              compactionThreshold: 0.75
+          - id: supervisor-interaction
+            name: '@deepseek-ai/dsh-tool-supervisor'
+            config:
+              wakeupOnNotification: false
+
+          # Reads the profile routing policy the scenario writes under
+          # `$DSH_HOME/profiles/supervisor/supervisor-routing.yml`.
+          - id: supervisor-routing
+            name: './tests/fixtures/supervisor-router.mjs'
+
+          # Registers the keyless executor provider used by every routed task.
+          - id: supervisor-executor-fixture
+            name: './tests/fixtures/supervisor-executor.mjs'
