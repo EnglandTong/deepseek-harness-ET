@@ -981,22 +981,6 @@ importers:
         specifier: ^15.0.0
         version: 15.0.0
 
-  packages/bundle/agent-governance:
-    dependencies:
-      '@deepseek-ai/dsh-agent-governance':
-        specifier: workspace:^
-        version: link:../../skill/agent-governance
-      '@deepseek-ai/dsh-subagent-dsh-sdk':
-        specifier: workspace:^
-        version: link:../../subagent/subagent-dsh-sdk
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/dsh-invariants':
-        specifier: workspace:^
-        version: link:../../runtime-diagnostics/invariants
-
   packages/bundle/base:
     dependencies:
       '@deepseek-ai/cordis-plugin-hmr':
@@ -6844,37 +6828,6 @@ importers:
       '@deepseek-ai/dsh-user-approval':
         specifier: workspace:^
         version: link:../../interaction/user-approval
-
-  packages/skill/agent-governance:
-    dependencies:
-      '@deepseek-ai/dsh-system-prompt':
-        specifier: workspace:^
-        version: link:../../core/system-prompt
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/dsh-invariants':
-        specifier: workspace:^
-        version: link:../../runtime-diagnostics/invariants
-      '@deepseek-ai/dsh-session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@deepseek-ai/dsh-skill':
-        specifier: workspace:^
-        version: link:../skill
-      '@deepseek-ai/dsh-skill-filesystem':
-        specifier: workspace:^
-        version: link:../skill-filesystem
-      '@deepseek-ai/dsh-subagent':
-        specifier: workspace:^
-        version: link:../../subagent/subagent
-      '@deepseek-ai/dsh-tools':
-        specifier: workspace:^
-        version: link:../../core/tools
 
   packages/skill/skill:
     dependencies:
