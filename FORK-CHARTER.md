@@ -26,4 +26,4 @@ This repository is the working fork of [deepseek-ai/deepseek-harness](https://gi
 
 ## CMS rules
 
-The governing methodology for both plugin repositories is the owner's CMS (规则) discipline. The authoritative definition of CMS rules is owner-maintained; when a plugin's behavior conflicts with it, treat the owner's CMS definition as authoritative.
+The governing methodology for both plugin repositories is the owner's CMS (规则) discipline, authored as the `cms-project-governance` skill at `D:\Development\ClawSkills\ClawSkills\skills\cms-project-governance` (Work Orders, single-writer governance, authority sharing, independent QA). That skill is the authoritative definition; the companion `agent-loop-engineering` skill governs loop execution. When a plugin's behavior conflicts with them, the skills win.
