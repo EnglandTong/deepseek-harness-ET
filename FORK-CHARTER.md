@@ -4,13 +4,12 @@ This repository is the working fork of [deepseek-ai/deepseek-harness](https://gi
 
 ## Role (owner-defined)
 
-> 原仓出来的分支，只修改非 plug-in 的部份。
-> A branch out of the original repo — only the non-plugin parts are modified here.
+> 这里我只修改了增加独立桌面端的开发，没有做任何其他的改变，只是从页面端改为 Windows 版。
+> The only non-upstream change is the independent desktop client: the web page front end becomes a Windows desktop app. Nothing else was changed.
 
 ## What belongs here
 
-- **Non-plugin surfaces only**: `apps/` (desktop shell, CLI/web bins, launcher integration), build and packaging tooling, docs for those surfaces, and fork-specific branches such as `agent/desktop-electron` (restored Electron desktop shell under `examples/desktop`).
-- **Runtime/integration glue** that hosts plugins but is not itself a plugin.
+- **The desktop client only**: `examples/desktop` (Electron desktop shell, restored on branch `agent/desktop-electron`) and the app-side glue it needs (`apps/` bins, packaging). Everything else tracks upstream.
 
 ## What does NOT belong here
 
