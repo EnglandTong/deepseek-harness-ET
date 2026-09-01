@@ -9,6 +9,11 @@ const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron')
 const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
+// Packaged builds resolve the DSH checkout into DSH_DEV_ROOT here —
+// profiles.js snapshots HARNESS_DEV from the environment at module load, so
+// the variable must exist before the require below. Dev mode (`pnpm start`)
+// keeps the profiles.js resolution untouched.
+if (app.isPackaged) require('./dev-root.js').applyPackagedDevRoot(process.env, { exeDir: path.dirname(app.getPath('exe')) })
 const { RuntimeSupervisor } = require('./runtime.js')
 const { profile, listProfiles, modelsFor, preflightRuntimeBinaries } = require('./profiles.js')
 const P = require('./plugins.js')
@@ -1152,7 +1157,11 @@ app.whenReady().then(async () => {
       : path.join(devRoot, 'packages', 'examples', 'daemon-demo', 'src', 'bin.ts')
     let tsxSpecifier
     try {
-      tsxSpecifier = require.resolve('tsx', { paths: [path.dirname(daemonBin)] })
+      // File-URL form: a Windows drive path parsed as a bare --import
+      // specifier fails ESM resolution (see profiles.js tsxSpecifier).
+      tsxSpecifier = require('node:url').pathToFileURL(
+        require.resolve('tsx', { paths: [path.dirname(daemonBin)] }),
+      ).href
     } catch (_) { tsxSpecifier = 'tsx' }
     const tsxTsconfigPath = path.join(
       daemonBin.includes('.worktrees')

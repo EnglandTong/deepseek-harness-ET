@@ -75,6 +75,10 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
   // No repository field in the published manifest.
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
+  // Desktop shell packaging deps install into examples/desktop's own
+  // node_modules (separate pnpm install), unreachable from the root store.
+  electron: { license: 'MIT', repo: 'https://github.com/electron/electron' },
+  'electron-builder': { license: 'MIT', repo: 'https://github.com/electron-userland/electron-builder' },
 }
 
 /**

@@ -1,57 +1,63 @@
-# Vibe leaf, DeepSeek variant: same shape as daemon-vibe.yml but with the
-# real DeepSeek adapter swapped in. Loaded through the jsonrpc-demo bin on
-# stdio (the daemon-demo path is fine too, but the deepseek profile only
-# needs one long-lived process for the shell's demo scope).
-#
-# Needs `DEEPSEEK_API_KEY` in `.env` at the DSH runtime root. See
-# `examples/cordis-agent/cordis.yml` in the DSH runtime checkout for the
-# canonical self-referential composition; this is a JSON-RPC-serving mirror
-# of it.
+# Vibe leaf, DeepSeek variant: the real DeepSeek adapter plus the cordis
+# self-modification tools, booted by the jsonrpc-demo bin on stdio. Needs
+# `DEEPSEEK_API_KEY` in the shell environment or `.env` at the DSH runtime
+# root. Composition mirrors examples/jsonrpc-agent/cordis.yml with a
+# workspace overview enabled (the model gets workspace context so it can
+# write a plugin that extends its own runtime) and the cordis tool mounted.
 
-- id: jsonrpc
-  name: '@deepseek-ai/dsh-jsonrpc'
+# Stdio JSON-RPC serving surface.
+- id: sdk-jsonrpc-server
+  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
 
-# agent-spine-demo requires an explicit `workspaceContext` (Config | false).
-# Vibe leaf mirrors examples/cordis-agent/cordis.yml which uses a 65536-byte
-# budget so the model gets a workspace overview; the plain deepseek-jsonrpc
-# leaf keeps `false` for hermetic prompts. See
-# `packages/examples/agent-spine-demo/src/index.ts` in the DSH runtime
-# checkout for the Config schema.
+# Agent spine with a workspace overview, so the model sees the checkout it
+# is extending. `maxBytes` matches the byte-budget pattern in
+# examples/jsonrpc-agent tests and the base bundle's agent-instructions row.
 - id: agent-core
   name: '@deepseek-ai/dsh-agent-spine-demo'
   config:
     workspaceContext:
       maxBytes: 65536
 
+# Native DeepSeek adapter; the key resolves per request through the
+# credential seam. Thinking pinned on for the shell's reasoning fold.
 - id: llm-deepseek
   name: '@deepseek-ai/dsh-llm-deepseek'
   config:
-    apiKey: !!js process.env.DEEPSEEK_API_KEY
-    baseURL: !!js process.env.DEEPSEEK_BASE_URL
-    models:
-      - deepseek-v4-pro
-      - deepseek-v4-flash
+    thinking: enabled
+
+# Managed child-process groups for the bash executor; required by the spine.
+- id: subprocess
+  name: '@deepseek-ai/dsh-subprocess-local'
 
 - id: bash
   name: '@deepseek-ai/dsh-bash-local'
-  config:
-    timeoutMs: 60000
 
-- id: fs-local
-  name: '@deepseek-ai/dsh-fs-local'
-  config:
-    cwd: !!js process.cwd()
-
-- id: web
-  name: '@deepseek-ai/dsh-web'
-
-- id: web-fetch-local
-  name: '@deepseek-ai/dsh-web-fetch-local'
-
+# JSONL persistence; sessions land under ./.sessions inside this dir.
 - id: sessions
   name: '@deepseek-ai/dsh-session-persistence-jsonl'
   config:
     root: './.sessions'
 
+# Persistence owns durable storage; this policy selects the request,
+# tool-dispatch, and completed-step durability checkpoints.
+- id: session-checkpoints
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'
+
+# Model-facing filesystem stack so file edits render the diff card and the
+# model can read the checkout it is extending (see deepseek-jsonrpc.yml).
+- id: fs-local
+  name: '@deepseek-ai/dsh-fs-local'
+  config:
+    cwd: !!js process.cwd()
+
+- id: fs-observation-policy
+  name: '@deepseek-ai/dsh-fs-observation-policy'
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+# Self-referential tool suite: cordis_inspect / cordis_mount / cordis_unmount
+# so the model can extend its own runtime (the shell renders these with the
+# purpose-built self-modification card).
 - id: tool-cordis
   name: '@deepseek-ai/dsh-tool-cordis'

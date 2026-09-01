@@ -45,7 +45,13 @@ async function runOneTurn(sup, sessionId, text) {
       events.push({ method, params })
       if (method === 'session.event') log(`  event: ${params.event.type}`)
       else log(`  ${method}`)
-      if (method === 'session.finished') {
+      // Turn completion arrives as a `turn/end` session-log event on the
+      // current wire; `session.finished` is the older standalone summary
+      // notification, kept as an alternative completion signal.
+      if (method === 'session.event' && params.event && params.event.type === 'turn/end') {
+        sup.off('notify', onNotify)
+        resolve(events)
+      } else if (method === 'session.finished') {
         sup.off('notify', onNotify)
         resolve(events)
       }

@@ -72,8 +72,8 @@ test('deepseek-jsonrpc.yml ships the full fs stack for the diff-card demo path',
   )
   assert.match(
     src,
-    /@deepseek-ai\/dsh-fs-policy\b/,
-    'default profile must include @deepseek-ai/dsh-fs-policy — read-before-write contract that tool-fs relies on',
+    /@deepseek-ai\/dsh-fs-observation-policy\b/,
+    'default profile must include @deepseek-ai/dsh-fs-observation-policy — read-before-write contract that tool-fs relies on',
   )
   assert.match(
     src,
