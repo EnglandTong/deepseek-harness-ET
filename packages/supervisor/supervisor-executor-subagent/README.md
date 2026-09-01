@@ -25,5 +25,5 @@ Stable executor names, provider names, and route versions keep repeated dispatch
 ## Known Limitations and Deferred Work
 
 - Provider packages must implement `prepare()` so the child Session identity is reserved before startup; this package does not reimplement external CLIs.
-- The integration Bundle will register concrete Codex, Claude Code, DSH SDK, and ACP adapters. Authentication remains owned by each native provider.
+- The integration Bundle registers the in-process model adapter (`@deepseek-ai/dsh-supervisor-executor-inprocess`); concrete Codex, Claude Code, DSH SDK, and ACP adapters remain future packages behind the same seam. Authentication remains owned by each native provider.
 - Result normalization records independent timeout, signal, and exit-code facts; it does not infer acceptance from a completed execution.
