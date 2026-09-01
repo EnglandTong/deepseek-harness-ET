@@ -12,11 +12,17 @@ function isBuildFaceClient(value: unknown): boolean {
  * TypeScript project and runs Typert. The Client pass selects packages that
  * declare a browser bundle and lets their package-local configs emit both
  * their Node loader entry and browser artifact.
+ *
+ * `DSH_TSDOWN_WORKSPACE_DIRS` (comma-separated package directories)
+ * narrows the build to an explicit closure — the Windows single-exe
+ * packaging uses it because a checkout can hold workspace-junctioned
+ * packages whose build is owned elsewhere. Unset keeps the full default.
  */
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
+  const workspaceDirs = env?.DSH_TSDOWN_WORKSPACE_DIRS?.split(',').map(dir => dir.trim()).filter(dir => dir !== '')
   return {
-    workspace: ['vendor/*', 'packages/*/*', 'apps/cli'],
+    workspace: workspaceDirs ?? ['vendor/*', 'packages/*/*', 'apps/cli'],
     entry: client ? '' : ['lib/types/{index,invariant,startup}.js'],
     outDir: 'lib',
     format: ['esm'],

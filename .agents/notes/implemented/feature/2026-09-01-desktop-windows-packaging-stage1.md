@@ -12,13 +12,16 @@ inside the installer) is stage two.
 ## Decision
 
 **Stage one packages the shell with electron-builder while the runtime
-keeps coming from a checkout on disk.** `pnpm dist` emits an NSIS
-installer and a portable exe; `src/main/dev-root.js` resolves the checkout
-at packaged startup (`DSH_DEV_ROOT` → `config.json` `harnessDevRoot` →
-walk-up from the portable/exe directory → `~/deepseek-harness(-dev)`) and
-materializes it as `DSH_DEV_ROOT` before `profiles.js` loads, so every
-existing consumer (spawn paths, plugin validation, playground) sees one
-value.
+keeps coming from a checkout on disk.** (Superseded for the real-model
+profiles by the [standalone win32 runtime note](2026-09-01-desktop-standalone-win32-runtime.md),
+which ships the single-file exe inside the installer; the checkout
+resolution below remains the echo-profile and development path.) `pnpm
+dist` emits an NSIS installer and a portable exe; `src/main/dev-root.js`
+resolves the checkout at packaged startup (`DSH_DEV_ROOT` → `config.json`
+`harnessDevRoot` → walk-up from the portable/exe directory →
+`~/deepseek-harness(-dev)`) and materializes it as `DSH_DEV_ROOT` before
+profiles.js loads, so every existing consumer (spawn paths, plugin
+validation, playground) sees one value.
 
 Packaging forced three runtime-bridge fixes that also apply to dev mode:
 

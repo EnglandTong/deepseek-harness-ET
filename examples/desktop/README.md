@@ -90,22 +90,34 @@ shell with [electron-builder](https://www.electron-builder.com/) into
 - **Portable exe** — `DSH-Desktop-Portable-<version>.exe`, a single file
   that runs from wherever it is placed.
 
-Both open like any Windows app — no terminal, no `pnpm start`. The
-portable exe resolves its runtime checkout by walking up from its own
-directory, so dropping it inside (or under) a deepseek-harness checkout
-needs zero configuration.
+Both open like any Windows app — no terminal, no `pnpm start`.
 
-The packaged app still boots the runtime from a deepseek-harness checkout
-on disk (this is the local-checkout packaging stage; a fully self-contained
-runtime bundle is a separate change). Checkout resolution at startup, in
-order: `DSH_DEV_ROOT`, the `harnessDevRoot` field of
+**The real-model profiles are standalone.** The installer carries the
+win32 single-file runtime (`dsh-jsonrpc-agent-pkg-win32-x64.exe`, built by
+`scripts/build-exe-for-python-sdk.ts --build-closure --targets
+node24-win32-x64` and staged by `pnpm sync-runtime`) as an extraResource:
+its pkg VFS holds the whole plugin closure, so `stdio-deepseek` and
+`stdio-vibe-deepseek` spawn the exe directly — no deepseek-harness
+checkout, no tsx, no system Node on the machine. Only `DEEPSEEK_API_KEY`
+is required (shell environment; `DSH_DESKTOP_WORKSPACE` optionally picks
+the workspace the model works in).
+
+**The keyless echo profiles still need a checkout**: their mock adapter is
+a shell-owned relative plugin the exe's closed VFS cannot resolve, so
+`stdio-echo` keeps resolving the runtime from a deepseek-harness checkout.
+Checkout resolution order: `DSH_DEV_ROOT`, the `harnessDevRoot` field of
 `~/.dsh-desktop/config.json`, a walk-up from the executable (or portable
-extraction) directory, then `~/deepseek-harness` and `~/deepseek-harness-dev`.
-Every candidate must hold `packages/examples/jsonrpc-demo/src/bin.ts`; when
-none matches, the runtime-error banner names the exact paths tried. The
-runtime itself spawns under system Node (≥ 22.19; override with
+extraction) directory, then `~/deepseek-harness` and `~/deepseek-harness-dev`;
+every candidate must hold `packages/examples/jsonrpc-demo/src/bin.ts`. When
+a checkout is absent the packaged app still boots — the missing-checkout
+state only affects the echo profiles and the Plugins tab's workspace scan.
+The checkout runtime spawns under system Node (≥ 22.19; override with
 `DSH_RUNTIME_NODE`) — Electron's embedded Node is too old for the current
-runtime — so a packaged machine needs Node and a `pnpm install`-ed checkout.
+runtime.
+
+`pnpm sync-runtime` fails loud with the build command when the runtime exe
+has not been built yet; `resources/runtime/` and `dist-exe/` are not
+committed.
 
 ## Pages & Features
 
