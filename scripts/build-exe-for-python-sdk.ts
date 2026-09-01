@@ -7,9 +7,10 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { chmod, copyFile, cp, lstat, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
+import { tmpdir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { resolveLinuxNodePtyAddon } from './build-exe-for-python-sdk-native-pty.ts'
 
@@ -50,7 +51,7 @@ const ASSET_GLOBS = [
   'node_modules/**/*.wasm',
 ]
 
-const PLATFORMS = ['linux', 'macos'] as const
+const PLATFORMS = ['linux', 'macos', 'win32'] as const
 const ARCHES = ['x64', 'arm64'] as const
 type Platform = (typeof PLATFORMS)[number]
 type Arch = (typeof ARCHES)[number]
@@ -71,8 +72,9 @@ class Target {
     /** pkg Node range (`node<major>`). */
     readonly nodeRange: string,
     /**
-     * pkg platform tag. Windows is a documented non-goal
-     * (.agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.md).
+     * pkg platform tag. Windows was a documented non-goal of the single-exe
+     * pipeline; the desktop standalone packaging added it with real-machine
+     * validation (see the 2026-09-01 desktop packaging Agent Note).
      */
     readonly platform: Platform,
     /** pkg CPU tag. */
@@ -112,7 +114,7 @@ class Target {
    * @returns the host target; throws on an unsupported host platform or arch.
    */
   static host(): Target {
-    const platform = process.platform === 'darwin' ? 'macos' : process.platform === 'linux' ? 'linux' : undefined
+    const platform = process.platform === 'darwin' ? 'macos' : process.platform === 'linux' ? 'linux' : process.platform === 'win32' ? 'win32' : undefined
     if (platform === undefined) {
       throw new Error(`build-exe-for-python-sdk: unsupported host platform ${process.platform}; pass --targets explicitly.`)
     }
@@ -131,8 +133,10 @@ class BuildCli {
   private constructor(
     /** Build targets; defaults to the host platform only. */
     readonly targets: readonly Target[],
-    /** Skip step 1 (`pnpm run build`); lib/ artifacts must already exist. */
+    /** Skip step 1 entirely; lib/ artifacts must already exist. */
     readonly skipBuild: boolean,
+    /** Build only the deploy closure (tsc -b projects + tsdown dirs) instead of the full workspace. */
+    readonly buildClosure: boolean,
     /** Print every command and config patch instead of executing. */
     readonly dryRun: boolean,
   ) {}
@@ -156,6 +160,9 @@ class BuildCli {
       console.log(BuildCli.usage())
       process.exit(0)
     }
+    if (values['skip-build'] && values['build-closure']) {
+      throw new Error('build-exe-for-python-sdk: --skip-build and --build-closure are mutually exclusive.')
+    }
     const targets = values.targets === undefined
       ? [Target.host()]
       : values.targets.split(',').map(part => part.trim()).filter(part => part !== '').map(spec => Target.parse(spec))
@@ -168,7 +175,7 @@ class BuildCli {
       }
       seen.add(key)
     }
-    return new BuildCli(targets, values['skip-build'], values['dry-run'])
+    return new BuildCli(targets, values['skip-build'], values['build-closure'], values['dry-run'])
   }
 
   private static parseRaw(argv: string[]) {
@@ -177,6 +184,7 @@ class BuildCli {
       options: {
         'targets': { type: 'string' },
         'skip-build': { type: 'boolean', default: false },
+        'build-closure': { type: 'boolean', default: false },
         'dry-run': { type: 'boolean', default: false },
         'help': { type: 'boolean', default: false },
       },
@@ -190,6 +198,9 @@ class BuildCli {
       '  --targets=<t1,t2,...>  pkg targets, e.g. node24-linux-x64,node24-linux-arm64,node24-macos-arm64.',
       '                         Default: the host platform only (on node24).',
       '  --skip-build           skip `pnpm run build` (lib/ artifacts must already exist).',
+      '  --build-closure        build only the deploy closure (tsc -b projects + tsdown dirs) instead',
+      '                         of the full workspace; used on Windows where excluded workspace-',
+      '                         junction packages can fail the full build.',
       '  --dry-run              print every command and config patch without executing.',
       '  --help                 print this help.',
       '',
@@ -201,6 +212,10 @@ class BuildCli {
 
 function pnpmBin(): string {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+}
+
+function npxBin(): string {
+  return process.platform === 'win32' ? 'npx.cmd' : 'npx'
 }
 
 /**
@@ -229,7 +244,19 @@ class SingleExeBuild {
 
   /** Verify the closure before compiling or packaging. */
   async verifyClosure(): Promise<void> {
-    await this.run('runtime dependency closure', pnpmBin(), ['run', 'verify-runtime-closure'])
+    await this.run('runtime dependency closure', pnpmBin(), [
+      ...this.pnpmStabilityFlags(),
+      'run', 'verify-runtime-closure',
+    ])
+  }
+
+  /**
+   * pnpm config flags every pipeline invocation carries: the pre-run
+   * dependencies check rewrites `.bin` shims (Windows EBUSY) and its
+   * config-drift purge prompts for a TTY the pipeline does not have.
+   */
+  private pnpmStabilityFlags(): string[] {
+    return ['--config.verify-deps-before-run=false', '--config.confirm-modules-purge=false']
   }
 
   /** Build all package artifacts unless `--skip-build` was passed. */
@@ -238,7 +265,108 @@ class SingleExeBuild {
       console.log('build-exe-for-python-sdk: skipping pnpm run build (--skip-build)')
       return
     }
+    if (this.cli.buildClosure) {
+      await this.buildClosureArtifacts()
+      return
+    }
     await this.run('build', pnpmBin(), ['run', 'build'])
+  }
+
+  /**
+   * Build only the deploy closure: `tsc -b` over one generated solution
+   * config referencing every closure package, then tsdown narrowed to the
+   * same package directories via DSH_TSDOWN_WORKSPACE_DIRS. Windows uses
+   * this because a checkout can hold workspace-junctioned packages (owned
+   * by a separate repository) whose sources fail the full-workspace build.
+   */
+  private async buildClosureArtifacts(): Promise<void> {
+    const { projects, dirs } = this.resolveClosureProjects()
+    const solution = join(tmpdir(), `tsconfig.exe-closure-${process.pid}.json`)
+    if (this.cli.dryRun) {
+      console.log(`build-exe-for-python-sdk: [dry-run] write ${solution} with ${projects.length} references`)
+    } else {
+      await writeFile(solution, `${JSON.stringify({ files: [], references: projects.map(project => ({ path: project })) }, null, 2)}\n`)
+    }
+    await this.run('closure tsc -b', npxBin(), ['tsc', '-b', solution])
+    const slashDirs = dirs.map(dir => dir.replaceAll(sep, '/'))
+    await this.run('closure tsdown', pnpmBin(), [
+      'exec', 'tsdown',
+      '--env.DSH_BUILD_FACE=host',
+      `--env.DSH_TSDOWN_WORKSPACE_DIRS=${slashDirs.join(',')}`,
+    ])
+  }
+
+  /**
+   * Traverse the deploy manifest's dependency + workspace-peer closure and
+   * return each package's tsconfig path (for `tsc -b`) and directory (for
+   * tsdown's workspace narrowing). Linux-only native platform packages are
+   * skipped: they never build on a non-Linux host and pnpm deploy stages
+   * only the matching-platform optionals.
+   */
+  private resolveClosureProjects(): { projects: string[]; dirs: string[] } {
+    const deployManifest = JSON.parse(readFileSync(resolve(root, 'python/sdk-runtime/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+    }
+    const index = new Map<string, string>()
+    const scan = (base: string, depth: number): void => {
+      for (const entry of existsSync(base) ? readdirSync(base, { withFileTypes: true }) : []) {
+        if (!entry.isDirectory()) continue
+        const dir = join(base, entry.name)
+        const packageManifest = join(dir, 'package.json')
+        if (existsSync(packageManifest)) {
+          const name = (JSON.parse(readFileSync(packageManifest, 'utf8')) as { name?: string }).name
+          if (name && !index.has(name)) index.set(name, dir)
+        } else if (depth > 0) {
+          scan(dir, depth - 1)
+        }
+      }
+    }
+    scan(join(root, 'packages'), 1)
+    scan(join(root, 'vendor'), 0)
+    scan(join(root, 'apps'), 0)
+    scan(join(root, 'python'), 0)
+
+    const skip = new Set([
+      '@deepseek-ai/node-addon-landlock-run',
+      '@deepseek-ai/node-addon-landlock-run-linux-arm64',
+      '@deepseek-ai/node-addon-landlock-run-linux-x64',
+    ])
+    const closure = new Set<string>()
+    const queue = Object.keys(deployManifest.dependencies ?? {})
+    while (queue.length > 0) {
+      const name = queue.pop() as string
+      if (closure.has(name)) continue
+      closure.add(name)
+      const dir = index.get(name)
+      if (dir === undefined) continue
+      const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>
+        peerDependencies?: Record<string, string>
+      }
+      const refs = Object.entries({ ...pkg.dependencies, ...pkg.peerDependencies })
+        .filter(([, spec]) => typeof spec === 'string' && spec.startsWith('workspace:'))
+        .map(([ref]) => ref)
+      for (const ref of refs) if (!closure.has(ref)) queue.push(ref)
+    }
+
+    const projects: string[] = []
+    const dirs: string[] = []
+    for (const name of [...closure].sort()) {
+      if (skip.has(name)) continue
+      const dir = index.get(name)
+      const tsconfig = dir === undefined ? undefined : join(dir, 'tsconfig.json')
+      if (dir === undefined || !existsSync(tsconfig as string)) continue
+      projects.push(tsconfig as string)
+      dirs.push(dir)
+    }
+    // The tsdown config imports the Typert generator's built plugin, so the
+    // generator must be built even though no runtime package depends on it.
+    const typertGenerator = join(root, 'packages', 'typert', 'generator')
+    if (existsSync(join(typertGenerator, 'tsconfig.json')) && !dirs.includes(typertGenerator)) {
+      projects.push(join(typertGenerator, 'tsconfig.json'))
+      dirs.push(typertGenerator)
+    }
+    return { projects, dirs }
   }
 
   /** Clear and deploy the runtime closure into the node carrier. */
@@ -249,6 +377,7 @@ class SingleExeBuild {
     if (this.cli.dryRun) console.log(`build-exe-for-python-sdk: [dry-run] rm -rf ${this.staging}`)
     else await rm(this.staging, { recursive: true, force: true })
     await this.run('deploy', pnpmBin(), [
+      ...this.pnpmStabilityFlags(),
       '--filter',
       DEPLOY_ROOT_PACKAGE,
       'deploy',
@@ -381,7 +510,8 @@ class SingleExeBuild {
    * @returns the executable path and, on macOS, its helper path.
    */
   async pack(target: Target): Promise<string[]> {
-    const product = join(this.outDir, `${OUTPUT_BASENAME}-${target.platform}-${target.arch}`)
+    const extension = target.platform === 'win32' ? '.exe' : ''
+    const product = join(this.outDir, `${OUTPUT_BASENAME}-${target.platform}-${target.arch}${extension}`)
     await this.prepareNativePty(target)
     if (!this.cli.dryRun) await mkdir(this.outDir, { recursive: true })
     await this.run(`pkg ${target.spec}`, pnpmBin(), [
@@ -463,6 +593,8 @@ class SingleExeBuild {
   /**
    * Copy each product into the Python runtime package. The deployed node
    * carrier is already in place, and `dist-exe/` retains upload copies.
+   * Windows products stay out: the Python wheels name linux/macos runtimes
+   * only, and the desktop standalone packaging stages its own copy.
    * @param products - the product paths returned by {@link pack}.
    */
   async syncToPythonRuntime(products: string[]): Promise<void> {
@@ -475,6 +607,10 @@ class SingleExeBuild {
     }
     await mkdir(destDir, { recursive: true })
     for (const path of products) {
+      if (path.endsWith('.exe')) {
+        console.log(`build-exe-for-python-sdk: keeping ${basename(path)} out of the Python runtime (desktop packaging owns it)`)
+        continue
+      }
       const destination = join(destDir, basename(path))
       await copyFile(path, destination)
       await chmod(destination, statSync(path).mode & 0o777)
@@ -500,8 +636,14 @@ class SingleExeBuild {
       const child = spawn(command, args, {
         cwd: root,
         stdio: 'inherit',
+        // Windows resolves pnpm/npx through .cmd shims, and Node >= 20.12
+        // requires shell mode for those (spawn EINVAL otherwise). Every
+        // argument this script passes is space-free, so cmd joining is safe.
+        shell: process.platform === 'win32',
         // Artifact builds must not mutate or validate a developer's Git hooks.
-        env: { ...process.env, CI: 'true' },
+        // verify-deps-before-run stays off: the Windows check locks `.bin`
+        // shims (EBUSY) while pnpm inspects them, failing unrelated steps.
+        env: { ...process.env, CI: 'true', npm_config_verify_deps_before_run: 'false' },
       })
       child.once('error', (error) => {
         reject(new Error(`build-exe-for-python-sdk: ${label} failed to spawn: ${error.message} (${printable})`))

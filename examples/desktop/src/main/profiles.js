@@ -153,6 +153,64 @@ function resolveRuntimeNode(env, embeddedVersion) {
 
 const RUNTIME_NODE = resolveRuntimeNode(process.env, process.versions.node)
 
+// Bundled standalone runtime (packaged builds): the win32 single-file exe
+// built by scripts/build-exe-for-python-sdk.ts ships as an extraResource
+// beside the app. When present, the deepseek profiles spawn it directly —
+// its pkg VFS carries the whole plugin closure, so every leaf bare name
+// resolves inside the exe and no repo checkout, tsx, or system Node
+// participates. Echo profiles keep the checkout path: their mock adapter
+// is a shell-owned relative plugin the VFS cannot resolve.
+const BUNDLED_RUNTIME_EXE = 'dsh-jsonrpc-agent-pkg-win32-x64.exe'
+
+function findBundledRuntime() {
+  // Packaged builds carry the runtime under resources/runtime; development
+  // opts in explicitly through DSH_BUNDLED_RUNTIME_DIR so checkout profiles
+  // stay the dev default even after a `pnpm dist` staged a runtime.
+  const candidates = []
+  if (process.env.DSH_BUNDLED_RUNTIME_DIR) candidates.push(path.join(process.env.DSH_BUNDLED_RUNTIME_DIR, BUNDLED_RUNTIME_EXE))
+  if (process.resourcesPath) candidates.push(path.join(process.resourcesPath, 'runtime', BUNDLED_RUNTIME_EXE))
+  for (const candidate of candidates) {
+    if (require('node:fs').existsSync(candidate)) return candidate
+  }
+  return null
+}
+
+const BUNDLED_RUNTIME = findBundledRuntime()
+
+// Bundled profiles ship their cordis leaves beside the runtime exe
+// (extraResources); the exe needs a real-file config because it reads it
+// through its own VFS-free fs.
+const BUNDLED_PROFILE_LEAF = {
+  'stdio-deepseek': 'bundled-deepseek.yml',
+  'stdio-vibe-deepseek': 'bundled-deepseek-vibe.yml',
+}
+
+function bundledLeafPath(name) {
+  const leaf = BUNDLED_PROFILE_LEAF[name]
+  if (!leaf) return null
+  if (process.env.DSH_BUNDLED_RUNTIME_DIR) return path.join(process.env.DSH_BUNDLED_RUNTIME_DIR, 'config', leaf)
+  return path.join(process.resourcesPath, 'runtime', 'config', leaf)
+}
+
+// The bundled runtime's workspace: where the fs stack and sessions root.
+// The shell passes DSH_CWD/DSH_SESSION_ROOT per spawn (see bundledEnv()).
+function bundledEnvBase() {
+  const shellHome = process.env.DSH_DESKTOP_HOME || path.join(os.homedir(), '.dsh-desktop')
+  const workspace = process.env.DSH_DESKTOP_WORKSPACE || os.homedir()
+  const sessions = path.join(shellHome, 'sessions')
+  try {
+    require('node:fs').mkdirSync(sessions, { recursive: true })
+  } catch (_) { /* the persistence plugin surfaces a real error if this fails */ }
+  return {
+    cwd: workspace,
+    env: {
+      ...(process.env.DEEPSEEK_API_KEY ? { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } : {}),
+      DSH_CWD: workspace,
+      DSH_SESSION_ROOT: sessions,
+    },
+  }
+}
+
 // HARNESS_DEV phantom-path guard (2026-07-18, fix/harness-dev-guard).
 //
 // The block above resolves HARNESS_DEV against `__dirname` (i.e. src/main/),
@@ -177,6 +235,22 @@ const RUNTIME_NODE = resolveRuntimeNode(process.env, process.versions.node)
 // materialized; only the real spawn path cares whether the bins exist.
 function preflightRuntimeBinaries(name) {
   const p = profile(name)
+  // Bundled standalone profiles carry their whole runtime: the exe plus the
+  // leaf beside it are the only preconditions, and no checkout, tsx, or
+  // system Node participates.
+  if (p.runtime === 'bundled') {
+    const leaf = p.args[0]
+    const missing = []
+    try { require('node:fs').accessSync(p.cmd) } catch (_) { missing.push(p.cmd) }
+    try { require('node:fs').accessSync(leaf) } catch (_) { missing.push(leaf) }
+    if (missing.length > 0) {
+      throw Object.assign(new Error(
+        `The bundled runtime is incomplete — missing ${missing.join(', ')}. ` +
+        `Rebuild it with scripts/build-exe-for-python-sdk.ts (see examples/desktop README, "Windows double-click packaging").`,
+      ), { code: 'DSH_BUNDLED_RUNTIME_INCOMPLETE' })
+    }
+    return { jsonrpcBin, daemonBin, harnessDev: HARNESS_DEV, bundledRuntime: p.cmd }
+  }
   // Which bin the profile actually spawns. daemon-mode uses daemonBin
   // (packages/examples/daemon-demo), the two stdio profiles use jsonrpcBin
   // (packages/examples/jsonrpc-demo). The path is baked into args[2] under
@@ -400,7 +474,24 @@ function profile(name) {
         protocolVersion: 2,
         capabilities: { interruptions: true },
       }
-    case 'stdio-deepseek':
+    case 'stdio-deepseek': {
+      if (BUNDLED_RUNTIME) {
+        const bundled = bundledEnvBase()
+        return {
+          mode: 'stdio',
+          runtime: 'bundled',
+          leafName: BUNDLED_PROFILE_LEAF['stdio-deepseek'],
+          cmd: BUNDLED_RUNTIME,
+          args: [bundledLeafPath('stdio-deepseek')],
+          cwd: bundled.cwd,
+          env: bundled.env,
+          provider: 'deepseek-official',
+          model: 'deepseek-v4-flash',
+          label: 'standalone runtime · deepseek-v4-flash (needs DEEPSEEK_API_KEY)',
+          protocolVersion: 2,
+          capabilities: { interruptions: true },
+        }
+      }
       return {
         mode: 'stdio',
         leafName: PROFILE_LEAF['stdio-deepseek'],
@@ -414,6 +505,7 @@ function profile(name) {
         protocolVersion: 2,
         capabilities: { interruptions: true },
       }
+    }
     // Vibe: same daemon topology as daemon-echo, plus the self-referential
     // cordis toolset (cordis_inspect / cordis_mount / cordis_unmount). The
     // mock-echo adapter cannot compose plugins, so the shell exposes the
@@ -442,7 +534,25 @@ function profile(name) {
         capabilities: { interruptions: true },
         vibeCapable: false,
       }
-    case 'stdio-vibe-deepseek':
+    case 'stdio-vibe-deepseek': {
+      if (BUNDLED_RUNTIME) {
+        const bundled = bundledEnvBase()
+        return {
+          mode: 'stdio',
+          runtime: 'bundled',
+          leafName: BUNDLED_PROFILE_LEAF['stdio-vibe-deepseek'],
+          cmd: BUNDLED_RUNTIME,
+          args: [bundledLeafPath('stdio-vibe-deepseek')],
+          cwd: bundled.cwd,
+          env: bundled.env,
+          provider: 'deepseek-official',
+          model: 'deepseek-v4-pro',
+          label: 'standalone vibe · deepseek-v4-pro (needs DEEPSEEK_API_KEY)',
+          protocolVersion: 2,
+          capabilities: { interruptions: true },
+          vibeCapable: true,
+        }
+      }
       return {
         mode: 'stdio',
         leafName: PROFILE_LEAF['stdio-vibe-deepseek'],
@@ -457,6 +567,7 @@ function profile(name) {
         capabilities: { interruptions: true },
         vibeCapable: true,
       }
+    }
     default:
       throw new Error(`unknown profile: ${name}`)
   }
@@ -474,6 +585,7 @@ module.exports = {
   modelsFor,
   configDir,
   preflightRuntimeBinaries,
+  bundledRuntime: BUNDLED_RUNTIME,
   // Exposed for tests + diagnostics; the actual spawn path uses the
   // preflight helper above.
   _HARNESS_DEV: HARNESS_DEV,

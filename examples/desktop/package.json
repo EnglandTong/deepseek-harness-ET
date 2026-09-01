@@ -18,8 +18,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
-    "dist:dir": "electron-builder --win --dir",
-    "dist": "electron-builder --win"
+    "sync-runtime": "node scripts/sync-bundled-runtime.js",
+    "dist:dir": "node scripts/sync-bundled-runtime.js && electron-builder --win --dir",
+    "dist": "node scripts/sync-bundled-runtime.js && electron-builder --win"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -35,6 +36,12 @@
     "files": [
       "src/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/runtime",
+        "to": "runtime"
+      }
     ],
     "win": {
       "icon": "assets/icon.ico",
