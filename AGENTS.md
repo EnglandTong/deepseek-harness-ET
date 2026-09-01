@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> **Fork charter (fork-local, keep across upstream syncs):** this fork modifies **non-plugin parts only** — `apps/`, tooling, and host surfaces. Plugin capability work (Service Definition / Provider / Consumer seams) belongs in the standalone plugin repos: [governance-multi-agent-harness](https://github.com/EnglandTong/governance-multi-agent-harness) and [master-agent-assistance](https://github.com/EnglandTong/master-agent-assistance). Full charter: [FORK-CHARTER.md](FORK-CHARTER.md).
+
 DeepSeek Harness is a plugin-based agent harness on vendored Cordis: **everything is a plugin**. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.
 
 ## Pre-release stance: foundation over blast radius
