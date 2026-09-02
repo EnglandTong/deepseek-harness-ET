@@ -1,0 +1,56 @@
+# The Personal Supervisor rows for the dashboard e2e: the host controller
+# chain plus the browser dashboard row. The routing router and the keyless
+# fixture executor are NOT rows — the spec registers them through the public
+# `ctx.supervisor` / `ctx.supervisorExecutors` services after boot, because
+# the scaffold resolves relative row names against its temp profile root,
+# not this file's directory.
+
+- insert:
+    # The public controller service and its durable singleton session.
+    - id: supervisor
+      name: '@deepseek-ai/dsh-supervisor'
+    - id: supervisor-session
+      name: '@deepseek-ai/dsh-supervisor-session'
+
+    # Explicit project enrollment and per-project execution hosts.
+    - id: supervisor-project-registry
+      name: '@deepseek-ai/dsh-supervisor-project-registry'
+    - id: supervisor-project-host
+      name: '@deepseek-ai/dsh-supervisor-project-host'
+
+    # The executor bridge; a keyless fixture provider registers at test time.
+    - id: supervisor-executors
+      name: '@deepseek-ai/dsh-supervisor-executor-subagent'
+
+    # Bounded orchestration: the confirmation gate holds every task for the
+    # dashboard's compare-and-set approval, and the fixture child runs after.
+    - id: supervisor-orchestrator
+      name: '@deepseek-ai/dsh-supervisor-orchestrator'
+      config:
+        maxRepairAttempts: 2
+        autoDispatch: true
+        retryOnFailure: true
+
+    # The run links the dashboard's child references resolve through come from
+    # the memory projection; without this row the api serves tasks with no runs.
+    - id: supervisor-memory
+      name: '@deepseek-ai/dsh-supervisor-memory'
+      config:
+        maxSummaryChars: 1200
+        maxBriefSummaries: 12
+        maxBriefNotifications: 12
+        compactionThreshold: 0.75
+
+    # The Host-facing read projection the dashboard consumes over the gateway.
+    - id: supervisor-api
+      name: '@deepseek-ai/dsh-supervisor-api'
+
+    # The /supervisor_* slash commands the spec's controller stub executes.
+    - id: supervisor-interaction
+      name: '@deepseek-ai/dsh-tool-supervisor'
+      config:
+        wakeupOnNotification: false
+
+    # The browser dashboard: sidebar.footer.action over the runtime projection.
+    - id: supervisor-ui
+      name: '@deepseek-ai/dsh-client-ui-supervisor'

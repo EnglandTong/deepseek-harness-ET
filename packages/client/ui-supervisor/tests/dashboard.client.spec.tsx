@@ -67,6 +67,14 @@ describe('SupervisorDashboard', () => {
     expect(supervisor.action).toHaveBeenCalledWith({ taskId: 'task-a', action: 'approve', expectedRevision: 3 })
   })
 
+  it('offers the approve/reject pair at the approval gate, not only after failures', async () => {
+    renderDashboard({ tasks: [{ id: 'task-a', revision: 5, projectId: 'project-a', title: 'Rewrite the pipeline', description: 'Replace the publish job', status: 'AwaitingApproval', nextAction: 'Wait for the owner approval decision' }] })
+    fireEvent.click(screen.getByRole('button', { name: zh['button.open.label'] }))
+    expect(screen.getByText('阻塞')).toBeDefined()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['task.approve'] })) })
+    expect(screen.getByRole('button', { name: zh['task.reject'] })).toBeDefined()
+  })
+
   it('expands only a read-only child session reference', async () => {
     const { supervisor } = renderDashboard()
     fireEvent.click(screen.getByRole('button', { name: zh['button.open.label'] }))

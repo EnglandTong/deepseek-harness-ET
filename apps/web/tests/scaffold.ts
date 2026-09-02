@@ -196,6 +196,14 @@ export interface LaunchOptions {
    */
   extraOverlayPath?: string
   /**
+   * Extra install anchors healed into the profile module fallback beside the
+   * CLI app anchor. A scenario whose overlay mounts rows from outside the
+   * app's dependency closure (an optional bundle's services, a test-owned
+   * composition) names those manifests, so their package closure resolves
+   * from the temp profile root exactly as a real installation would.
+   */
+  extraInstallAnchors?: readonly string[]
+  /**
    * Replay fixture (session.jsonl) served by the inserted dsh-llm-replay row
    * in replay/refresh modes; ignored in record mode (the real adapter
    * answers). Omit for scenarios issuing no model calls — a stray stream then
@@ -517,7 +525,10 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     // The production module-resolution setup: an empty profile root inside the temp
     // harness home, with bare plugin names resolving through the flat module
     // fallback the launcher heals under <home>/profiles.
-    healProfilesModuleFallback(INSTALL_ANCHOR, harnessHome)
+    healProfilesModuleFallback(
+      options.extraInstallAnchors === undefined ? INSTALL_ANCHOR : [INSTALL_ANCHOR, ...options.extraInstallAnchors],
+      harnessHome,
+    )
     const profileDir = join(harnessHome, 'profiles', 'scaffold')
     await mkdir(profileDir, { recursive: true })
     const rootConfig = join(profileDir, 'cordis.yml')

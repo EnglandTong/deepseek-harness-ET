@@ -16,7 +16,7 @@ declare module '@deepseek-ai/cordis' { interface Context { supervisorApi: Superv
 export class SupervisorApiService extends Service implements SupervisorApiContract {
   static inject = ['supervisor', 'supervisorOrchestrator', 'supervisorSession']
   /** @param ctx - context containing Supervisor services. */
-  constructor(ctx: Context) { super(ctx, 'supervisorApi'); ctx.accessor('supervisorApi', { get: () => this }) }
+  constructor(ctx: Context) { super(ctx, 'supervisorApi') }
 
   /** Return the detached dashboard projection for the main assistant.
    * @returns current detached dashboard projection.

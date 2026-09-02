@@ -41,7 +41,7 @@ function useSupervisorState(client: SupervisorClient): SupervisorClientState {
 /** Normalize the extensible Host status vocabulary for visual grouping. */
 function taskTone(status: string): TaskTone {
   const normalized = status.toLowerCase().replaceAll('_', '').replaceAll('-', '')
-  if (normalized === 'blocked' || normalized === 'needsownerdecision' || normalized === 'needsfix') return 'blocked'
+  if (normalized === 'blocked' || normalized === 'needsownerdecision' || normalized === 'needsfix' || normalized === 'awaitingapproval') return 'blocked'
   if (normalized === 'readyforreview') return 'review'
   if (normalized === 'accepted' || normalized === 'completed') return 'completed'
   if (normalized === 'running' || normalized === 'dispatched' || normalized === 'ready' || normalized === 'classified') return 'active'
@@ -64,7 +64,9 @@ function statusLabel(status: string, t: TranslateNS<typeof NS>): string {
 /** Actions made available by the Host state machine for a task. */
 function actionsFor(task: SupervisorTaskView): readonly SupervisorActionKind[] {
   const normalized = task.status.toLowerCase().replaceAll('_', '').replaceAll('-', '')
-  if (normalized === 'needsownerdecision') return ['approve', 'reject']
+  // The approval gate and the post-failure decision point both answer to the
+  // owner's approve/reject pair through the same compare-and-set action.
+  if (normalized === 'needsownerdecision' || normalized === 'awaitingapproval') return ['approve', 'reject']
   if (normalized === 'readyforreview' || normalized === 'needsfix') return ['rework']
   if (normalized === 'running' || normalized === 'dispatched') return ['pause']
   if (normalized === 'paused') return ['continue']

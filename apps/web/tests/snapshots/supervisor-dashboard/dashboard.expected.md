@@ -1,0 +1,29 @@
+- dialog "Personal Supervisor":
+  - heading "Personal Supervisor" [level=2]
+  - button "Close":
+    - img
+  - paragraph: Read-only project and subagent state; Host actions use task revision checks.
+  - region "Projects":
+    - heading "Projects" [level=3]
+    - text: 0 active · 0 blocked · 1 ready for review
+    - list:
+      - listitem: Project Alpha
+  - region "Tasks":
+    - heading "Tasks" [level=3]
+    - article:
+      - strong: Summarize the ledger
+      - text: ready for review
+      - paragraph: Collect the current status of every registered project.
+      - paragraph: "Project: Project Alpha"
+      - paragraph: "Next: Report the summary for owner review"
+      - paragraph: "Blocked: Matched route \"supervisor-command\""
+      - paragraph: e2e-fixture
+      - button "View read-only run session"
+      - button "Request rework"
+  - region "Needs attention":
+    - heading "Needs attention" [level=3]
+    - paragraph: No unread critical notifications.
+    - list
+  - button "Refresh":
+    - img
+    - text: Refresh

@@ -26,7 +26,7 @@ import { createRequire } from 'node:module'
 import {
   existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import { applyEntryPatches, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
@@ -217,20 +217,26 @@ function ensureSymlink(link: string, target: string): void {
  * Idempotent: correct links are kept and moved installations are
  * re-pointed; a stale link to a vanished package stays until its name is
  * reused (dangling links are invisible to resolution).
- * @param installAnchor - absolute path of the dsh app's package.json.
+ * @param installAnchor - absolute path of the dsh app's package.json, or
+ *   several anchors whose union of dependency closures is healed (an optional
+ *   bundle or overlay composition names packages the app itself never ships).
  * @param home - the Harness home; defaults to {@link resolveDshHome}.
  */
-export function healProfilesModuleFallback(installAnchor: string, home: string = resolveDshHome()): void {
+export function healProfilesModuleFallback(installAnchor: string | readonly string[], home: string = resolveDshHome()): void {
   const profilesDir = join(home, PROFILES_DIR)
   const modulesDir = join(profilesDir, 'node_modules')
   mkdirSync(modulesDir, { recursive: true })
-  const appManifest = JSON.parse(readFileSync(installAnchor, 'utf8')) as ProfileManifest
+  const anchors = (typeof installAnchor === 'string' ? [installAnchor] : [...installAnchor]).map(anchor => resolve(anchor))
   const links = new Map<string, string>()
-  /* v8 ignore next -- a real app manifest always declares its name */
-  if (appManifest.name !== undefined) links.set(appManifest.name, dirname(installAnchor))
+  const queue: { anchor: string; manifest: ProfileManifest }[] = []
+  for (const anchor of anchors) {
+    const manifest = JSON.parse(readFileSync(anchor, 'utf8')) as ProfileManifest
+    /* v8 ignore next -- a real app manifest always declares its name */
+    if (manifest.name !== undefined) links.set(manifest.name, dirname(anchor))
+    queue.push({ anchor, manifest })
+  }
   // BFS over the resolvable dependency graph; the visited set is the link
   // map itself (first resolution wins, matching Node's own nearest-wins).
-  const queue: { anchor: string; manifest: ProfileManifest }[] = [{ anchor: installAnchor, manifest: appManifest }]
   for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
     // Peer dependencies participate: Service Definition packages (dsh-subprocess,
     // dsh-compaction, ...) are peers of their implementations, never plain
