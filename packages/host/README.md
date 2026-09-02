@@ -33,6 +33,7 @@ Seven packages play the host roles; each package README owns its contract and co
 | [`directory-picker-browse/`](directory-picker-browse/README.md) | In-app directory-browser backend, including for remote clients | registers `ctx.directoryPicker` |
 | [`directory-picker-auto/`](directory-picker-auto/README.md) | Host-adaptive chooser that mounts the matching backend at boot | mounts a backend |
 | [`plugin-inventory/`](plugin-inventory/README.md) | Read-only projection of current Loader entries | Remote `pluginInventory/list` |
+| [`plugin-import/`](plugin-import/README.md) | Installs plugin bundles into the booted profile and hot-applies the layers | Remote `pluginImport/import` |
 
 -----
 

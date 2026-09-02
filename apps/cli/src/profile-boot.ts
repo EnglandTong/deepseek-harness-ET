@@ -26,9 +26,11 @@ import {
   loadOverlayPatches,
   loadProfile,
   PROFILE_PATCH_FILENAME,
+  updateRootIncludePatches,
   watchUserPatches,
   type Profile,
 } from '@deepseek-ai/dsh-app-boot'
+import { PROFILE_PLUGIN_MANAGER_KEY, type ProfilePluginManager } from '@deepseek-ai/dsh-host-plugin-import'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { DSH_LAUNCH_ENVIRONMENT_KEY, type LaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
@@ -246,6 +248,35 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     ...loadOptionalPatches(NAME, homePatchPath()) ?? [],
     ...composed.overlays,
   ])
+  // Launcher facts plus the live bundle re-apply trigger for surfaces that
+  // manage the profile they booted from (the web plugin-import page): a
+  // hot-apply re-loads the profile so a freshly installed bundle's layer
+  // joins `composed`, keeping later file-watch recompositions consistent.
+  const profilePluginManager: ProfilePluginManager = {
+    context: {
+      binName: NAME,
+      name: options.profile,
+      dir: composed.profile.dir,
+      installAnchor: INSTALL_ANCHOR,
+    },
+    async applyInstalledBundles() {
+      const current = app.current
+      if (current === undefined || current.fiber.state !== FiberState.ACTIVE || current.get('loader') === undefined) {
+        return { ok: false, error: 'the running tree cannot accept a live re-apply' }
+      }
+      try {
+        const fresh = prepareProfile(options.profile)
+        await healProfilesModuleFallback({ installAnchor: INSTALL_ANCHOR, profile: fresh })
+        composed.profile = fresh
+        composed.bundlePatches = fresh.layers.flatMap(layer => layer.patches)
+        composed.homePatches = loadOptionalPatches(NAME, homePatchPath()) ?? []
+        await updateRootIncludePatches(current, structuredClone(allPatches(composed)))
+        return { ok: true }
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+  }
   // Cloned for the same insert-aliasing reason as composeLive: the boot
   // application must not mutate the objects later reloads recompose from.
   const ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
@@ -253,6 +284,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
     // Before any config-tree entry mounts, so plugins resolve all launch-time
     // environment values from the same immutable provenance snapshot.
     hostCtx.provide(DSH_LAUNCH_ENVIRONMENT_KEY, options.environment)
+    hostCtx.provide(PROFILE_PLUGIN_MANAGER_KEY, profilePluginManager)
     // The command line and bounded exit request are launcher facts available
     // to every app plugin that injects the argument snapshot.
     provideCmdline(hostCtx, {

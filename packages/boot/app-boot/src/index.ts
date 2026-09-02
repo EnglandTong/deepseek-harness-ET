@@ -52,6 +52,14 @@ export {
   type ProfileTemplate,
 } from './profile.ts'
 
+export {
+  anchorPathSpec,
+  installProfileBundle,
+  reconcileProfileBundles,
+  type InstallProfileBundleOptions,
+  type InstallProfileBundleResult,
+} from './profile-install.ts'
+
 /**
  * Resolve the config to boot. Replay swaps a `cordis.yml` basename for
  * `cordis.snapshot.yml` in the same directory; every other mode keeps the path.
@@ -264,6 +272,29 @@ export async function watchUserPatches(
     if ((error as { code?: string } | null)?.code === 'INACTIVE_EFFECT') return async () => {}
     throw error
   }
+}
+
+/**
+ * Transactionally replace the root Include entry's patch list 鈥?the same
+ * re-apply {@link watchUserPatches} performs on a file change, exposed for a
+ * caller that re-composed the profile's bundle layers (a web plugin import
+ * hot-applies its newly installed bundle without a process restart).
+ * @param ctx - the settled app context containing the boot Include entry.
+ * @param patches - the fresh full patch stack, in application order.
+ * @throws when the boot Include entry is absent (no Loader, or a disposed tree).
+ */
+export async function updateRootIncludePatches(ctx: Context, patches: PatchOptions[]): Promise<void> {
+  const entry = bootstrapIncludes.get(ctx)
+  if (entry === undefined) throw new Error('root include entry is unavailable for a live patch re-apply')
+  // Re-read the include's non-patch options per re-apply so a writer that
+  // updates another option between applies is not silently reverted.
+  const { patches: _previousPatches, ...includeConfig } = entry.options.config as Include.Config
+  await entry.update({
+    config: {
+      ...includeConfig,
+      patches,
+    },
+  })
 }
 
 /**
