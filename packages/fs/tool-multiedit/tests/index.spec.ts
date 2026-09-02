@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
@@ -35,7 +35,7 @@ async function readThrough(path: string): Promise<string> {
 function call(name: string, args: Record<string, unknown>) {
   return ctx.tools.execute({
     signal: new AbortController().signal,
-    callId: CallId(`multiedit-${++callNumber}`),
+    callId: ToolCallId(`multiedit-${++callNumber}`),
     name,
     arguments: args,
     agent,
@@ -117,7 +117,7 @@ describe('multi_edit', () => {
     await readThrough(join(workRoot, 'a.txt'))
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
-      callId: CallId('multiedit-noagent'),
+      callId: ToolCallId('multiedit-noagent'),
       name: 'multi_edit',
       arguments: { edits: [{ file_path: 'a.txt', old_string: 'alpha', new_string: 'ALPHA' }] },
     })

@@ -54,7 +54,7 @@ async function readTarget(path: string): Promise<string> {
 }
 
 function events(): Array<{ type: string; data: Record<string, unknown> }> {
-  return session.events.map(event => ({ type: event.type, data: event.data as Record<string, unknown> }))
+  return session.snapshotEvents().map(event => ({ type: event.type, data: event.data as Record<string, unknown> }))
 }
 
 beforeEach(async () => {

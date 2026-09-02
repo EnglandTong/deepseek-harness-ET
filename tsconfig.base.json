@@ -147,6 +147,8 @@
       "@deepseek-ai/dsh-host-frontend-static": ["./packages/host/frontend-static/src"],
       "@deepseek-ai/dsh-host-plugin-inventory": ["./packages/host/plugin-inventory/src"],
       "@deepseek-ai/dsh-host-plugin-inventory/types": ["./packages/host/plugin-inventory/src/types.ts"],
+      "@deepseek-ai/dsh-host-plugin-import": ["./packages/host/plugin-import/src"],
+      "@deepseek-ai/dsh-host-plugin-import/types": ["./packages/host/plugin-import/src/types.ts"],
       "@deepseek-ai/dsh-client-ui-slots": ["./packages/client/ui-slots/src"],
       "@deepseek-ai/dsh-client-ui-attachment": ["./packages/client/ui-attachment/src"],
       "@deepseek-ai/dsh-client-ui-primitives": ["./packages/client/ui-primitives/src"],
@@ -202,6 +204,7 @@
       "@deepseek-ai/dsh-client-ui-settings-general": ["./packages/client/ui-settings-general/src"],
       "@deepseek-ai/dsh-client-ui-settings-models": ["./packages/client/ui-settings-models/src"],
       "@deepseek-ai/dsh-client-ui-settings-plugin-inventory": ["./packages/client/ui-settings-plugin-inventory/src"],
+      "@deepseek-ai/dsh-client-ui-settings-plugin-import": ["./packages/client/ui-settings-plugin-import/src"],
       "@deepseek-ai/dsh-client-locale": ["./packages/client/locale/src"],
       "@deepseek-ai/dsh-client-web": ["./packages/client/web/src"],
       "@deepseek-ai/dsh-schedule/client": ["./packages/schedule/schedule/src/client.ts"],
@@ -227,6 +230,15 @@
       // util/ folders are role-named without the util- prefix their npm names carry,
       // so these aliases stay hand-written like dsh-util-crypto above.
       "@deepseek-ai/dsh-util-time": ["./packages/util/time/src"],
+      // Workspace-snapshot packages (fork-local additions) hand-written because
+      // gen-tsconfig-paths cannot run on checkouts holding excluded junction
+      // packages; their names match their directories, so they align with what
+      // the generator would emit.
+      "@deepseek-ai/dsh-snapshot": ["./packages/fs/snapshot/src"],
+      "@deepseek-ai/dsh-snapshot/invariant": ["./packages/fs/snapshot/src/invariant.ts"],
+      "@deepseek-ai/dsh-snapshot-local": ["./packages/fs/snapshot-local/src"],
+      "@deepseek-ai/dsh-tool-multiedit": ["./packages/fs/tool-multiedit/src"],
+      "@deepseek-ai/dsh-tool-snapshot": ["./packages/fs/tool-snapshot/src"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],

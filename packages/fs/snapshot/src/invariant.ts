@@ -37,7 +37,7 @@ function validateEvent(event: SessionEvent, fail: InvariantFailure): void {
 /** Install validation for loaded and newly appended snapshot events. */
 const install: InvariantInstaller = Object.assign((ctx: Context, fail: InvariantFailure) => {
   for (const session of ctx.sessions.list()) {
-    for (const event of session.events) validateEvent(event, fail)
+    for (const event of session.snapshotEvents()) validateEvent(event, fail)
   }
   ctx.on('internal/dispatch', (_mode, eventName, args) => {
     if (eventName !== 'session/event') return

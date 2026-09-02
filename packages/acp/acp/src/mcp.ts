@@ -53,6 +53,7 @@ function resolveMcpConfigs(servers: readonly McpServer[], sessionCwd: string): M
         args: server.args,
         env,
         cwd: sessionCwd,
+        startupTimeoutMs: 60_000,
         failOnStartupError: true,
       }))
       return { ...config, env }
@@ -65,6 +66,7 @@ function resolveMcpConfigs(servers: readonly McpServer[], sessionCwd: string): M
         serverName,
         url: server.url,
         headers,
+        startupTimeoutMs: 60_000,
         failOnStartupError: true,
       }))
       return { ...config, headers }

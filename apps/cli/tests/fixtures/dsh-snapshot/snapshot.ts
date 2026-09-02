@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import { Inbox, type Agent } from '@deepseek-ai/dsh-agent'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { boot, loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
 import { SessionId } from '@deepseek-ai/dsh-session'
 
@@ -45,7 +45,7 @@ try {
   }
   let callNumber = 0
   const call = (name: string, args: Record<string, unknown>) => ctx.tools.execute({
-    callId: CallId(`dsh-snapshot-${++callNumber}`),
+    callId: ToolCallId(`dsh-snapshot-${++callNumber}`),
     name,
     arguments: args,
     agent,

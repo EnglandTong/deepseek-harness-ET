@@ -1,7 +1,7 @@
 /** Tests for the snapshot tool consumer: registration, execution against a stub snapshots service, and presentation. */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { SnapshotId } from '@deepseek-ai/dsh-snapshot'
 import SnapshotService from '@deepseek-ai/dsh-snapshot'
 import type { SnapshotInfo } from '@deepseek-ai/dsh-snapshot'
@@ -83,7 +83,7 @@ describe('tool-snapshot registration', () => {
 function call(name: string, args: Record<string, unknown>, withAgent: boolean = true) {
   return ctx.tools.execute({
     signal: new AbortController().signal,
-    callId: CallId(`snapshot-tool-${++callNumber}`),
+    callId: ToolCallId(`snapshot-tool-${++callNumber}`),
     name,
     arguments: args,
     ...withAgent ? { agent } : {},
