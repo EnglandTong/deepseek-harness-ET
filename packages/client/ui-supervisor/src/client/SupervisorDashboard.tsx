@@ -1,12 +1,15 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type {
   SupervisorActionKind,
-  SupervisorChildSessionView,
   SupervisorProjectView,
   SupervisorRunView,
   SupervisorTaskView,
 } from '@deepseek-ai/dsh-host-apiproxy/api'
-import type { SupervisorClient, SupervisorClientState } from '@deepseek-ai/dsh-client-runtime/client'
+import type {
+  SupervisorChildTranscriptPage,
+  SupervisorClient,
+  SupervisorClientState,
+} from '@deepseek-ai/dsh-client-runtime/client'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { Button, IconCordisPluginOutline14, IconRefreshOutline16, Modal, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -73,7 +76,7 @@ function actionsFor(task: SupervisorTaskView): readonly SupervisorActionKind[] {
   return []
 }
 
-/** Child reference shown after the user expands a task's run details. */
+/** Read-only transcript of one child run, revealed under its reference line. */
 function ChildSession({
   task,
   run,
@@ -87,7 +90,9 @@ function ChildSession({
 }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [child, setChild] = useState<SupervisorChildSessionView | undefined>()
+  const [sessionId, setSessionId] = useState<string | undefined>()
+  const [page, setPage] = useState<SupervisorChildTranscriptPage | undefined>()
+  const [transcriptError, setTranscriptError] = useState<string | undefined>()
 
   const reveal = (): void => {
     if (open) {
@@ -95,12 +100,36 @@ function ChildSession({
       return
     }
     setOpen(true)
-    if (child !== undefined || run === undefined) return
+    if (run === undefined) return
+    if (sessionId !== undefined) return
     setLoading(true)
-    void supervisor.childSession(task.id, run.runId).then((value) => {
-      setChild(value)
-      setLoading(false)
+    void supervisor.childTranscript({ taskId: task.id, runId: run.runId })
+      .then((value) => {
+        setSessionId(value?.sessionId)
+        setPage(value ?? undefined)
+      })
+      .catch((error: unknown) => { setTranscriptError(error instanceof Error ? error.message : String(error)) })
+      .finally(() => { setLoading(false) })
+  }
+
+  const loadOlder = (): void => {
+    if (page?.oldestSeq === undefined) return
+    setTranscriptError(undefined)
+    void supervisor.childTranscript({
+      taskId: task.id,
+      ...(run === undefined ? {} : { runId: run.runId }),
+      beforeSeq: page.oldestSeq,
     })
+      .then((older) => {
+        if (older === undefined) return
+        setPage({
+          sessionId: page.sessionId,
+          messages: [...older.messages, ...page.messages],
+          oldestSeq: older.oldestSeq ?? page.oldestSeq,
+          hasOlder: older.hasOlder,
+        })
+      })
+      .catch((error: unknown) => { setTranscriptError(error instanceof Error ? error.message : String(error)) })
   }
 
   if (run === undefined) return <span className={css.noRun}>{t('task.child.none')}</span>
@@ -112,14 +141,36 @@ function ChildSession({
       {open && (
         <div className={css.childRef} role="status">
           {loading && t('task.child.loading')}
-          {!loading && child !== undefined && (
+          {!loading && sessionId !== undefined && (
             <>
-              <span>{t('task.child.ref', { session: child.sessionId })}</span>
+              <span>{t('task.child.ref', { session: sessionId })}</span>
               <span className={css.readonly}>{t('task.child.readonly')}</span>
             </>
           )}
-          {!loading && child === undefined && t('task.child.none')}
+          {!loading && sessionId === undefined && transcriptError === undefined && t('task.child.none')}
         </div>
+      )}
+      {open && transcriptError !== undefined && (
+        <p className={css.transcriptError} role="alert">{t('transcript.failed', { message: transcriptError })}</p>
+      )}
+      {open && !loading && transcriptError === undefined && page !== undefined && (
+        page.messages.length === 0
+          ? <p className={css.transcriptEmpty}>{t('transcript.empty')}</p>
+          : (
+            <div className={css.transcript} role="log" aria-label={t('task.child')}>
+              {page.messages.map(message => (
+                <p key={message.seq} className={css.transcriptRow}>
+                  <span className={css.transcriptRole}>{t(message.role === 'user' ? 'transcript.user' : 'transcript.assistant')}</span>
+                  <span className={css.transcriptText}>{message.text}</span>
+                </p>
+              ))}
+              {page.hasOlder && (
+                <button type="button" className={css.childToggle} onClick={loadOlder}>
+                  {t('transcript.older')}
+                </button>
+              )}
+            </div>
+          )
       )}
     </div>
   )

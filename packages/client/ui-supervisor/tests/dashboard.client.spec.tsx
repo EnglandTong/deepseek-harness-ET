@@ -3,23 +3,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SupervisorClient, SupervisorClientState } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SupervisorChildSessionView } from '@deepseek-ai/dsh-host-apiproxy/api'
+import type { SupervisorChildTranscriptPage } from '@deepseek-ai/dsh-client-runtime/client'
 import { SupervisorDashboard, type SupervisorDashboardProps } from '../src/client/SupervisorDashboard.tsx'
 import { zh } from '../src/client/locales.ts'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-const child: SupervisorChildSessionView = {
-  taskId: 'task-a',
-  runId: 'run-a',
+const transcriptPage: SupervisorChildTranscriptPage = {
   sessionId: 'child-a',
-  parentSessionId: 'supervisor-main',
-  readOnly: true,
+  messages: [
+    { role: 'user', text: 'Collect the current status of every registered project.', seq: 4 },
+    { role: 'assistant', text: 'E2E_EXECUTION_DONE task-a', seq: 6 },
+  ],
+  oldestSeq: 4,
+  hasOlder: false,
 }
 
 function client(state: SupervisorClientState): SupervisorClient & {
   action: ReturnType<typeof vi.fn>
-  childSession: ReturnType<typeof vi.fn>
+  childTranscript: ReturnType<typeof vi.fn>
 } {
   const store = {
     getSnapshot: () => state,
@@ -29,8 +31,8 @@ function client(state: SupervisorClientState): SupervisorClient & {
     state: store,
     refresh: vi.fn(async () => {}),
     action: vi.fn(async () => undefined),
-    childSession: vi.fn(async () => child),
-  } as unknown as SupervisorClient & { action: ReturnType<typeof vi.fn>; childSession: ReturnType<typeof vi.fn> }
+    childTranscript: vi.fn(async () => transcriptPage),
+  } as unknown as SupervisorClient & { action: ReturnType<typeof vi.fn>; childTranscript: ReturnType<typeof vi.fn> }
 }
 
 function renderDashboard(overrides: Partial<SupervisorClientState> = {}) {
@@ -75,14 +77,23 @@ describe('SupervisorDashboard', () => {
     expect(screen.getByRole('button', { name: zh['task.reject'] })).toBeDefined()
   })
 
-  it('expands only a read-only child session reference', async () => {
+  it('expands a read-only child reference with its transcript, never a composer', async () => {
     const { supervisor } = renderDashboard()
     fireEvent.click(screen.getByRole('button', { name: zh['button.open.label'] }))
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['task.child'] })) })
-    expect(supervisor.childSession).toHaveBeenCalledWith('task-a', 'run-a')
+    expect(supervisor.childTranscript).toHaveBeenCalledWith({ taskId: 'task-a', runId: 'run-a' })
     expect(screen.getByText(zh['task.child.ref'].replace('{session}', 'child-a'))).toBeDefined()
     expect(screen.getByText(zh['task.child.readonly'])).toBeDefined()
+    expect(screen.getByText('E2E_EXECUTION_DONE task-a')).toBeDefined()
+    expect(screen.getByText(zh['transcript.assistant'])).toBeDefined()
     expect(screen.queryByRole('textbox')).toBeNull()
+  })
+
+  it('offers an older-page control only when the transcript has more history', async () => {
+    renderDashboard()
+    fireEvent.click(screen.getByRole('button', { name: zh['button.open.label'] }))
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh['task.child'] })) })
+    expect(screen.queryByText(zh['transcript.older'])).toBeNull()
   })
 
   it('shows a clear Host error without fabricating project state', () => {

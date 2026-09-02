@@ -40,4 +40,56 @@ describe('SupervisorRuntime', () => {
     const child = await runtime.childSession('task')
     expect(child).toMatchObject({ sessionId: 'child', readOnly: true })
   })
+
+  it('maps a child transcript page from the generic session history, filtering non-text rows', async () => {
+    const history = vi.fn(async () => ({ rpcId: 'rpc' as never, result: { ok: true as const, value: {
+      events: [
+        { event: { type: 'user/message', seq: 4, time: 1, data: { role: 'user', content: [{ type: 'text', text: 'routed task' }], source: { kind: 'user' } }, surfaceOp: 'append' } },
+        { event: { type: 'tool/call', seq: 5, time: 2, data: { turn: 1, step: 1, callId: 'c1', name: 'noop', arguments: '{}' } } },
+        { event: { type: 'assistant/message', seq: 6, time: 3, data: { turn: 1, step: 1, message: { id: 'm1', role: 'assistant', source: { kind: 'model', provider: 'deepseek', model: 'e2e' }, content: [{ type: 'text', text: 'execution done' }] } } } },
+        { event: { type: 'assistant/message', seq: 7, time: 4, data: { turn: 1, step: 2, message: { id: 'm2', role: 'assistant', source: { kind: 'model', provider: 'deepseek', model: 'e2e' }, content: [] } } } },
+      ],
+      hasMore: true,
+    } } }))
+    const api = { supervisor: apiFor().supervisor, sessions: { history } } as unknown as IApiClient
+    const runtime = new SupervisorRuntime(api)
+    const page = await runtime.childTranscript({ taskId: 'task' })
+    expect(page).toEqual({
+      sessionId: 'child',
+      messages: [
+        { role: 'user', text: 'routed task', seq: 4 },
+        { role: 'assistant', text: 'execution done', seq: 6 },
+      ],
+      oldestSeq: 4,
+      hasOlder: true,
+    })
+    expect(history).toHaveBeenCalledWith({ sessionId: 'child', maxMessages: 40 }, undefined)
+  })
+
+  it('passes the older-page anchor through and throws on a failed read', async () => {
+    const history = vi.fn(async (payload: { beforeSeq?: number }) => {
+      if (payload.beforeSeq === undefined) throw new Error('unexpected first page')
+      return { rpcId: 'rpc' as never, result: { ok: true as const, value: { events: [], hasMore: false } } }
+    })
+    const api = { supervisor: apiFor().supervisor, sessions: { history } } as unknown as IApiClient
+    const runtime = new SupervisorRuntime(api)
+    const page = await runtime.childTranscript({ taskId: 'task', beforeSeq: 4 })
+    expect(page).toEqual({ sessionId: 'child', messages: [], oldestSeq: undefined, hasOlder: false })
+
+    const failing = new SupervisorRuntime({ supervisor: apiFor().supervisor, sessions: { history: vi.fn(async () => ({ rpcId: 'rpc' as never, result: { ok: false as const, error: { code: 'internal' as const, message: 'log vanished', details: {} } } })) } } as unknown as IApiClient)
+    await expect(failing.childTranscript({ taskId: 'task' })).rejects.toThrow('log vanished')
+  })
+
+  it('resolves undefined when the task has no child session', async () => {
+    const history = vi.fn()
+    const missingChild = vi.fn(async () => ({ rpcId: 'rpc' as never, result: { ok: false as const, error: { code: 'supervisor-not-found', message: 'no run', details: {} } } }))
+    const base = apiFor().supervisor as NonNullable<IApiClient['supervisor']>
+    const api = {
+      supervisor: { ...base, childSession: missingChild as unknown as NonNullable<IApiClient['supervisor']>[ 'childSession' ] },
+      sessions: { history },
+    } as unknown as IApiClient
+    const runtime = new SupervisorRuntime(api)
+    await expect(runtime.childTranscript({ taskId: 'task' })).resolves.toBeUndefined()
+    expect(history).not.toHaveBeenCalled()
+  })
 })

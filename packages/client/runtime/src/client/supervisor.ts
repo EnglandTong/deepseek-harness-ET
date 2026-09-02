@@ -5,6 +5,7 @@
  */
 
 import type { IApiClient } from '@deepseek-ai/dsh-host-apiproxy/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
   SupervisorActionKind,
   SupervisorActionReceipt,
@@ -29,6 +30,26 @@ export interface SupervisorClientState {
   error: string | undefined
 }
 
+/** One read-only text row of a child run's transcript. */
+export interface SupervisorChildTranscriptMessage {
+  readonly role: 'user' | 'assistant'
+  readonly text: string
+  readonly seq: number
+}
+
+/** One bounded read-only page of a child run's transcript, ordered oldest first. */
+export interface SupervisorChildTranscriptPage {
+  readonly sessionId: string
+  readonly messages: readonly SupervisorChildTranscriptMessage[]
+  /** The seq of the oldest message on this page; the anchor for the next older page. */
+  readonly oldestSeq: number | undefined
+  /** Whether older pages exist beyond this page. */
+  readonly hasOlder: boolean
+}
+
+/** Transcript fetch bounds for one dashboard page; a presentation bound, not deployment behavior. */
+export const SUPERVISOR_TRANSCRIPT_PAGE_MESSAGES = 40
+
 /** Public client-side Supervisor operations consumed by the dashboard. */
 export interface SupervisorClient {
   readonly state: SnapshotStore<SupervisorClientState>
@@ -38,6 +59,16 @@ export interface SupervisorClient {
   action(request: SupervisorActionRequest, signal?: AbortSignal): Promise<SupervisorActionReceipt | undefined>
   /** Resolve a task's child session without granting write access. */
   childSession(taskId: string, runId?: string, signal?: AbortSignal): Promise<SupervisorChildSessionView | undefined>
+  /**
+   * Read one bounded read-only transcript page of a task's child session.
+   * Pass `beforeSeq` (the previous page's `oldestSeq`) for the next older
+   * page. Resolves `undefined` when the task has no child session; throws on
+   * a failed transcript read.
+   */
+  childTranscript(
+    request: { taskId: string; runId?: string; beforeSeq?: number },
+    signal?: AbortSignal,
+  ): Promise<SupervisorChildTranscriptPage | undefined>
 }
 
 /**
@@ -124,6 +155,43 @@ export class SupervisorRuntime implements SupervisorClient {
     }
     return outcome.value
   }
+
+  async childTranscript(
+    request: { taskId: string; runId?: string; beforeSeq?: number },
+    signal?: AbortSignal,
+  ): Promise<SupervisorChildTranscriptPage | undefined> {
+    const child = await this.childSession(request.taskId, request.runId, signal)
+    if (child === undefined) return undefined
+    const result = await this.api.sessions.history({
+      sessionId: child.sessionId as SessionId,
+      maxMessages: SUPERVISOR_TRANSCRIPT_PAGE_MESSAGES,
+      ...(request.beforeSeq === undefined ? {} : { beforeSeq: request.beforeSeq }),
+    }, signal)
+    const outcome = result.result
+    if (outcome.ok === false) throw new Error(outcome.error.message)
+    const messages: SupervisorChildTranscriptMessage[] = []
+    for (const entry of outcome.value.events) {
+      const event = entry.event
+      if (event.type === 'user/message') {
+        const text = transcriptTextOf(event.data.content)
+        if (text !== '') messages.push({ role: 'user', text, seq: event.seq })
+      } else if (event.type === 'assistant/message') {
+        const text = transcriptTextOf(event.data.message.content)
+        if (text !== '') messages.push({ role: 'assistant', text, seq: event.seq })
+      }
+    }
+    return {
+      sessionId: child.sessionId,
+      messages,
+      oldestSeq: messages[0]?.seq,
+      hasOlder: outcome.value.hasMore,
+    }
+  }
+}
+
+/** Join one message's text blocks; non-text blocks are not transcript rows. */
+function transcriptTextOf(blocks: readonly { type: string; text?: string }[] | undefined): string {
+  return (blocks ?? []).filter(block => block.type === 'text').map(block => block.text ?? '').join('')
 }
 
 export type { SupervisorActionKind }

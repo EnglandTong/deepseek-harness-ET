@@ -125,11 +125,15 @@ describe('web e2e: supervisor dashboard over the running host', () => {
     // ledger settles first, then the card: assert the CARD (the summary line
     // also says "ready for review", so dialog-wide text cannot discriminate).
     await dialog.getByRole('button', { name: 'Approve' }).click()
-    await waitFor(
-      () => scaffold.ctx.supervisorOrchestrator.listTasks().some(task => task.status === 'ReadyForReview'),
-      'task review settlement',
-      20_000,
-    )
+    try {
+      await waitFor(
+        () => scaffold.ctx.supervisorOrchestrator.listTasks().some(task => task.status === 'ReadyForReview'),
+        'task review settlement',
+        20_000,
+      )
+    } catch (error: unknown) {
+      throw new Error(`${String(error)} :: tasks=${JSON.stringify(scaffold.ctx.supervisorOrchestrator.listTasks())}`)
+    }
     const card = dialog.locator('article')
     await expect.poll(() => card.textContent(), { timeout: 20_000 }).toContain(READY_LABEL)
     await expect.poll(async () => await card.getByRole('button', { name: 'Working\u2026' }).count(), { timeout: 10_000 }).toBe(0)
@@ -138,11 +142,15 @@ describe('web e2e: supervisor dashboard over the running host', () => {
     await mkdir(SNAPSHOT_DIR, { recursive: true })
     await compareOrRefreshGolden(DASHBOARD_GOLDEN, snapshot, MODE)
 
-    // The run's child reference stays a read-only pointer, never a composer.
+    // The run's child reference stays a read-only pointer: expanding it
+    // renders the run's transcript rows and never a composer.
     await expect.poll(() => dialog.getByRole('button', { name: 'View read-only run session' }).count(), { timeout: 10_000 }).toBe(1)
     await dialog.getByRole('button', { name: 'View read-only run session' }).click()
-    await expect.poll(() => dialog.textContent(), { timeout: 10_000 }).toMatch(/Read-only child session: .+/u)
-    expect(dialog.getByText('read-only')).toBeDefined()
+    let dialogText = ''
+    await expect.poll(() => dialog.textContent().then((value) => { dialogText = value ?? ''; return dialogText }), { timeout: 10_000 }).toContain('E2E_EXECUTION_DONE')
+    expect(dialog.getByText('Assistant')).toBeDefined()
+    expect(dialog.getByText('Collect the current status.')).toBeDefined()
+    expect(await dialog.getByRole('button', { name: 'Load earlier messages' }).count()).toBe(0)
     expect(await dialog.getByRole('textbox').count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])

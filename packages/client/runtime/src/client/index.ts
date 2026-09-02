@@ -66,6 +66,7 @@ export type { SubagentAddress, JobView } from '@deepseek-ai/dsh-client-connectio
 export type { WorkspaceListPhase } from './workspaces/manager.ts'
 export { SupervisorRuntime } from './supervisor.ts'
 export type {
+  SupervisorChildTranscriptMessage, SupervisorChildTranscriptPage,
   SupervisorClient, SupervisorClientState,
 } from './supervisor.ts'
 export type { WorkspaceListState } from './workspaces/service.ts'

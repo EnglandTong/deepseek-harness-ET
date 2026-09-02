@@ -2,6 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { UserMessage } from '@deepseek-ai/dsh-session'
 import { SessionId as brandSessionId } from '@deepseek-ai/dsh-session'
 import type { SupervisorExecutorProvider } from '@deepseek-ai/dsh-supervisor-executor-subagent'
@@ -52,6 +53,19 @@ export function createE2eExecutor(ctx: Context): SupervisorExecutorProvider {
       const childSessionId = brandSessionId(`supervisor-e2e-child:${String(request.runId)}`)
       const prepared = ctx.sessions.prepare(childSessionId, { meta: { cwd: project.realPath } })
       await ctx.sessionPersistence.create(prepared.header)
+      // A small deterministic transcript so the dashboard's read-only child
+      // view has content to render, exactly as a real child run would. The
+      // messages ride one closed turn so the log stays validator-clean.
+      const promptText = `Routed work order ${String(request.taskId)}: collect the current status.`
+      const doneText = `E2E_EXECUTION_DONE ${String(request.taskId)}`
+      prepared.append('turn/start', { turn: 1 })
+      prepared.append('user/message', createUserMessage({ content: [{ type: 'text', text: promptText }], source: { kind: 'user' } }), { surfaceOp: 'append' })
+      prepared.append('assistant/message', {
+        turn: 1,
+        step: 1,
+        message: createAssistantMessage({ content: [{ type: 'text', text: doneText }], source: { provider: 'deepseek', model: 'e2e-fixture' } }),
+      }, { surfaceOp: 'append' })
+      prepared.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
       const detach = ctx.sessions.enter(prepared)
       ctx.sessions.announce(prepared)
       await ctx.sessions.flush(prepared)
@@ -69,7 +83,7 @@ export function createE2eExecutor(ctx: Context): SupervisorExecutorProvider {
             childSessionId,
             result: Promise.resolve({
               stopReason: 'completed' as const,
-              output: [{ type: 'text' as const, text: `E2E_EXECUTION_DONE ${String(request.taskId)}` }],
+              output: [{ type: 'text' as const, text: doneText }],
             }),
             dispose: close,
           }

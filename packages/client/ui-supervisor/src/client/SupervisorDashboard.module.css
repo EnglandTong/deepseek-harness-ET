@@ -194,6 +194,50 @@ h3 {
   color: var(--dsw-alias-label-tertiary);
 }
 
+.transcript {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.transcriptRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.transcriptRole {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.transcriptText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--dsw-alias-label-primary);
+}
+
+.transcriptEmpty {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+
+.transcriptError {
+  margin: 0;
+  color: var(--dsw-alias-label-error, #d84b4b);
+  font-size: 11px;
+}
+
 .actions {
   display: flex;
   gap: 6px;
