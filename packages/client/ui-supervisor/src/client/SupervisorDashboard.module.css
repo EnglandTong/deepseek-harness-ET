@@ -258,6 +258,34 @@ h3 {
 .empty { margin: 0; line-height: 18px; }
 .error { color: var(--dsw-alias-label-error, #d84b4b); }
 
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.asideHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.asideHeader .actions { margin-left: 0; }
+
+.asideTitle {
+  margin: 0;
+  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 560px) {
   .sectionHeading { align-items: flex-start; flex-direction: column; }
   .taskTitle { align-items: flex-start; flex-direction: column; gap: 2px; }

@@ -5,7 +5,7 @@
  * the per-session active view dissolved into ui-conversation's session store
  * (its only consumer). What remains here is the contract other plugins'
  * apply worlds reach for panel transitions (sidebar toggle from ui-sidebar,
- * details open/close from ui-conversation) — writes stay inside the store's
+ * details open/close from ui-conversation) 鈥?writes stay inside the store's
  * declared action set, delivered as the registration's bound actions.
  */
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
@@ -16,17 +16,21 @@ export type PanelActions = BoundActions<ReturnType<typeof createLayoutStore>>
 
 /**
  * The outward layout face (`ctx.layout`): the panel transitions other
- * plugins may trigger — and exactly what a test fake must supply. The
+ * plugins may trigger 鈥?and exactly what a test fake must supply. The
  * attachPanels wiring hook stays on the concrete class (root-entry assembly
  * only).
  */
 export interface ILayout {
-  /** Toggle the sidebar panel (closed ⟷ contract default width). */
+  /** Toggle the sidebar panel (closed 鉄?contract default width). */
   toggleSidebar(): void
   /** Open the details panel (no-op when already open). */
   openDetails(): void
   /** Close the details panel. */
   closeDetails(): void
+  /** Toggle the aside panel (closed → contract default width, open → closed). */
+  toggleAside(): void
+  /** Close the aside panel. */
+  closeAside(): void
 }
 
 /** Cross-plugin panel-action face (ctx.layout). */
@@ -44,7 +48,7 @@ export class LayoutController implements ILayout {
     this.#panels = actions
   }
 
-  /** Toggle the sidebar panel (closed ⟷ contract default width). */
+  /** Toggle the sidebar panel (closed 鉄?contract default width). */
   toggleSidebar(): void {
     this.#require().toggleSidebar()
   }
@@ -59,9 +63,19 @@ export class LayoutController implements ILayout {
     this.#require().closeDetails()
   }
 
+  /** Toggle the aside panel (closed -> contract default width, open -> closed). */
+  toggleAside(): void {
+    this.#require().toggleAside()
+  }
+
+  /** Close the aside panel. */
+  closeAside(): void {
+    this.#require().closeAside()
+  }
+
   #require(): PanelActions {
     // Callers are UI gestures, which cannot fire before the root entry
-    // rendered (the inject hook runs in its first render) — reaching this
+    // rendered (the inject hook runs in its first render) 鈥?reaching this
     // unwired is a boot-order bug, not a race to tolerate.
     if (this.#panels === undefined) throw new Error('layout: panel actions not wired (root entry not mounted)')
     return this.#panels

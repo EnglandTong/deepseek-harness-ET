@@ -26,7 +26,6 @@ const DASHBOARD_GOLDEN = join(SNAPSHOT_DIR, 'dashboard.expected.md')
 const OVERLAY = fileURLToPath(new URL('./supervisor-dashboard.overlay.yml', import.meta.url))
 const MODE = webSnapshotMode()
 const OPEN_LABEL = 'Open Personal Supervisor'
-const DIALOG_LABEL = 'Personal Supervisor'
 const READY_LABEL = 'ready for review'
 
 /** beforeAll-safe condition wait: poll until the predicate holds or the budget runs out. */
@@ -103,6 +102,7 @@ describe('web e2e: supervisor dashboard over the running host', () => {
 
   it('shows the gated task and approves it into review from the dashboard', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-supervisor-dashboard'))
+    onTestFailed(async () => { console.log('DEBUG_BODY_ARIA\n' + await page.locator('body').ariaSnapshot().catch((error: unknown) => `unavailable: ${String(error)}`)) })
 
     // The capture left the task at the confirmation gate.
     await expect.poll(
@@ -113,18 +113,18 @@ describe('web e2e: supervisor dashboard over the running host', () => {
     // The dashboard opens over the real gateway projection and the gate card
     // offers the owner action pair.
     await page.getByRole('button', { name: OPEN_LABEL }).click()
-    const dialog = page.getByRole('dialog', { name: DIALOG_LABEL })
-    await dialog.waitFor({ timeout: 10_000 })
-    await expect.poll(() => dialog.getByRole('button', { name: 'Approve' }).count(), { timeout: 15_000 }).toBe(1)
-    expect(dialog.getByText('Project Alpha')).toBeDefined()
-    expect(dialog.getByText('Summarize the ledger')).toBeDefined()
-    expect(dialog.getByText('blocked')).toBeDefined()
+    const aside = page.locator('[data-aside]')
+    await expect.poll(() => aside.getByText('Project Alpha').count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(1)
+    await expect.poll(() => aside.getByRole('button', { name: 'Approve' }).count(), { timeout: 15_000 }).toBe(1)
+    expect(aside.getByText('Project Alpha')).toBeDefined()
+    expect(aside.getByText('Summarize the ledger')).toBeDefined()
+    expect(aside.getByText('blocked')).toBeDefined()
 
     // The compare-and-set approval dispatches the fixture child; the card
     // settles at ReadyForReview through the refreshed projection. The host
     // ledger settles first, then the card: assert the CARD (the summary line
     // also says "ready for review", so dialog-wide text cannot discriminate).
-    await dialog.getByRole('button', { name: 'Approve' }).click()
+    await aside.getByRole('button', { name: 'Approve' }).click()
     try {
       await waitFor(
         () => scaffold.ctx.supervisorOrchestrator.listTasks().some(task => task.status === 'ReadyForReview'),
@@ -134,24 +134,24 @@ describe('web e2e: supervisor dashboard over the running host', () => {
     } catch (error: unknown) {
       throw new Error(`${String(error)} :: tasks=${JSON.stringify(scaffold.ctx.supervisorOrchestrator.listTasks())}`)
     }
-    const card = dialog.locator('article')
+    const card = aside.locator('article')
     await expect.poll(() => card.textContent(), { timeout: 20_000 }).toContain(READY_LABEL)
     await expect.poll(async () => await card.getByRole('button', { name: 'Working\u2026' }).count(), { timeout: 10_000 }).toBe(0)
 
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    const snapshot = await captureStableAria(page, '[data-aside]', scaffold.workspaceCwd)
     await mkdir(SNAPSHOT_DIR, { recursive: true })
     await compareOrRefreshGolden(DASHBOARD_GOLDEN, snapshot, MODE)
 
     // The run's child reference stays a read-only pointer: expanding it
     // renders the run's transcript rows and never a composer.
-    await expect.poll(() => dialog.getByRole('button', { name: 'View read-only run session' }).count(), { timeout: 10_000 }).toBe(1)
-    await dialog.getByRole('button', { name: 'View read-only run session' }).click()
+    await expect.poll(() => aside.getByRole('button', { name: 'View read-only run session' }).count(), { timeout: 10_000 }).toBe(1)
+    await aside.getByRole('button', { name: 'View read-only run session' }).click()
     let dialogText = ''
-    await expect.poll(() => dialog.textContent().then((value) => { dialogText = value ?? ''; return dialogText }), { timeout: 10_000 }).toContain('E2E_EXECUTION_DONE')
-    expect(dialog.getByText('Assistant')).toBeDefined()
-    expect(dialog.getByText('Collect the current status.')).toBeDefined()
-    expect(await dialog.getByRole('button', { name: 'Load earlier messages' }).count()).toBe(0)
-    expect(await dialog.getByRole('textbox').count()).toBe(0)
+    await expect.poll(() => aside.textContent().then((value) => { dialogText = value ?? ''; return dialogText }), { timeout: 10_000 }).toContain('E2E_EXECUTION_DONE')
+    expect(aside.getByText('Assistant')).toBeDefined()
+    expect(aside.getByText('Collect the current status.')).toBeDefined()
+    expect(await aside.getByRole('button', { name: 'Load earlier messages' }).count()).toBe(0)
+    expect(await aside.getByRole('textbox').count()).toBe(0)
     expect(tripwire.pageErrors).toEqual([])
     expect(tripwire.warnings).toEqual([])
   }, 120_000)
@@ -166,11 +166,11 @@ describe('web e2e: supervisor dashboard over the running host', () => {
       // mask intercepts pointer events, so open the dashboard via a direct
       // DOM click like the goal scenario's rapid-click gesture.
       await fixturePage.getByRole('button', { name: OPEN_LABEL }).evaluate((button) => { (button as HTMLButtonElement).click() })
-      const dialog = fixturePage.getByRole('dialog', { name: DIALOG_LABEL })
-      await dialog.waitFor({ timeout: 10_000 })
-      await expect.poll(() => dialog.locator('[role="alert"]').textContent(), { timeout: 10_000 })
+      const aside = fixturePage.locator('[data-aside]')
+      await expect.poll(() => aside.locator('[role="alert"]').count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(1)
+      await expect.poll(() => aside.locator('[role="alert"]').textContent(), { timeout: 10_000 })
         .toContain('Supervisor service unavailable')
-      expect(await dialog.getByText('Project Alpha').count()).toBe(0)
+      expect(await aside.getByText('Project Alpha').count()).toBe(0)
     } finally {
       await fixturePage.close()
     }

@@ -71,6 +71,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'details': { kind: 'single'; scope: 'session'; owner: DetailsOwnerProps }
     /**
+     * The far-right aside column, beside the conversation and independent of
+     * any session (root scope). Occupied by cross-session panels — the
+     * Personal Supervisor dashboard dock is the shipped occupant. The column
+     * is width-0 while closed (the subtree stays mounted), `ctx.layout`
+     * toggles it, and the concession solver closes it first under squeeze.
+     *
+     * No owner props: occupants receive their services through their own
+     * registration inject.
+     */
+    'aside': { kind: 'single'; scope: 'root' }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -123,6 +134,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
+        'aside': { kind: 'single', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per

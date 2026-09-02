@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import type {
   SupervisorActionKind,
   SupervisorProjectView,
@@ -10,8 +10,9 @@ import type {
   SupervisorClient,
   SupervisorClientState,
 } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
-import { Button, IconCordisPluginOutline14, IconRefreshOutline16, Modal, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCordisPluginOutline14, IconRefreshOutline16, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { NS, type SupervisorKey } from './locales.ts'
 import css from './SupervisorDashboard.module.css'
@@ -23,11 +24,16 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Full props for the sidebar footer dashboard entry. */
-export type SupervisorDashboardProps =
+/** Full props for the sidebar footer dock toggle. */
+export type SupervisorFooterProps =
   PropsRuntime<'sidebar.footer.action'>
   & PropsLocale<typeof NS>
-  & { supervisor: SupervisorClient }
+  & { supervisor: SupervisorClient; layout: ILayout }
+
+/** Props for the docked aside panel. */
+export type SupervisorAsideProps =
+  PropsLocale<typeof NS>
+  & { supervisor: SupervisorClient; layout: ILayout }
 
 /** A task status category used only to choose a visual treatment. */
 type TaskTone = 'active' | 'blocked' | 'review' | 'completed' | 'other'
@@ -315,42 +321,40 @@ function DashboardPanel({
 }
 
 /**
- * Sidebar footer action and modal dashboard. It stays a read-only projection
- * until a user clicks an explicit Host action; child sessions expose only
- * references and never mount a composer.
- * @param props - sidebar state, translator, and Host-backed Supervisor client.
- * @returns the footer action and optional dashboard modal.
+ * Sidebar footer dock toggle and the docked aside dashboard. The projection
+ * stays read-only until a user clicks an explicit Host action; child sessions
+ * expose only references and never mount a composer.
  */
-export function SupervisorDashboard({ wide, supervisor, t }: SupervisorDashboardProps) {
+export function SupervisorFooterAction({ wide, supervisor, layout, t }: SupervisorFooterProps) {
   const state = useSupervisorState(supervisor)
-  const [open, setOpen] = useState(false)
   const unread = state.notifications.filter(notification => notification.unread).length
-  useEffect(() => {
-    if (open) void supervisor.refresh()
-  }, [open, supervisor])
   return (
-    <>
-      <Tooltip label={t('button.open.label')} delayMs={500} disabled={wide}>
-        <button
-          type="button"
-          className={`${css.trigger} ${wide ? css.triggerWide : ''}`}
-          aria-label={t('button.open.label')}
-          onClick={() => { setOpen(true) }}
-        >
-          <IconCordisPluginOutline14 size={wide ? 14 : 18} />
-          {wide && <span>{t('button.open')}</span>}
-          {unread > 0 && <span className={css.badge} aria-label={`${unread}`}>{unread}</span>}
-        </button>
-      </Tooltip>
-      <Modal
-        open={open}
-        onClose={() => { setOpen(false) }}
-        title={t('dialog.title')}
-        closeLabel={t('close')}
-        description={t('dialog.description')}
-        className={css.dialog ?? ''}
-        contentClassName={css.dialogContent ?? ''}
-        footer={(
+    <Tooltip label={t('button.open.label')} delayMs={500} disabled={wide}>
+      <button
+        type="button"
+        className={`${css.trigger} ${wide ? css.triggerWide : ''}`}
+        aria-label={t('button.open.label')}
+        onClick={() => {
+          layout.toggleAside()
+          void supervisor.refresh()
+        }}
+      >
+        <IconCordisPluginOutline14 size={wide ? 14 : 18} />
+        {wide && <span>{t('button.open')}</span>}
+        {unread > 0 && <span className={css.badge} aria-label={`${unread}`}>{unread}</span>}
+      </button>
+    </Tooltip>
+  )
+}
+
+/** The docked aside body: the same bounded projection the modal used to render. */
+export function SupervisorAside({ supervisor, layout, t }: SupervisorAsideProps) {
+  const state = useSupervisorState(supervisor)
+  return (
+    <div className={css.aside}>
+      <div className={css.asideHeader}>
+        <h2 className={css.asideTitle} id="supervisor-aside-title">{t('dialog.title')}</h2>
+        <div className={css.actions}>
           <Button
             variant="ghost"
             size="sm"
@@ -360,12 +364,15 @@ export function SupervisorDashboard({ wide, supervisor, t }: SupervisorDashboard
           >
             {state.loading ? t('refreshing') : t('refresh')}
           </Button>
-        )}
-      >
-        {state.loading && state.identity === undefined && <p className={css.loading}>{t('loading')}</p>}
-        {state.error !== undefined && <p className={css.error} role="alert">{t('unavailable', { message: state.error })}</p>}
-        {state.identity !== undefined && <DashboardPanel state={state} supervisor={supervisor} t={t} />}
-      </Modal>
-    </>
+          <Button variant="ghost" size="sm" onClick={() => { layout.closeAside() }}>
+            {t('close')}
+          </Button>
+        </div>
+      </div>
+      <p className={css.empty}>{t('dialog.description')}</p>
+      {state.loading && state.identity === undefined && <p className={css.loading}>{t('loading')}</p>}
+      {state.error !== undefined && <p className={css.error} role="alert">{t('unavailable', { message: state.error })}</p>}
+      {state.identity !== undefined && <DashboardPanel state={state} supervisor={supervisor} t={t} />}
+    </div>
   )
 }
