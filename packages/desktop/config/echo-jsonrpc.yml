@@ -1,0 +1,44 @@
+# Keyless echo profile for the desktop demo, booted by the jsonrpc-demo bin
+# on stdio. The mock adapter comes from this shell (plugins/mock-llm.mjs);
+# no package on the runtime checkout registers `mock-echo`.
+#
+# Composition mirrors examples/jsonrpc-agent/cordis.yml (the maintained
+# SDK-runtime leaf) minus the DeepSeek adapter, with the mock adapter swapped
+# in. The JSON-RPC client (the desktop shell) announces
+# capabilities.interruptions=true; session/interrupt degrades gracefully on
+# this composition (no approval plugin mounted) — the echo demo is for UI
+# walkthroughs, not approval flows.
+
+# Stdio JSON-RPC serving surface.
+- id: sdk-jsonrpc-server
+  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+
+# Agent spine; mounts the llm runtime and the loop, and requires an explicit
+# `workspaceContext` (Config | false) because it changes model-visible input.
+# `false` = hermetic prompts; the mock adapter ignores context anyway.
+- id: agent-core
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    workspaceContext: false
+
+# Mock adapter from this shell; keyless. Path is relative to this file.
+- id: mock-llm
+  name: '../plugins/mock-llm.mjs'
+
+# Managed child-process groups for the bash executor; required by the spine.
+- id: subprocess
+  name: '@deepseek-ai/dsh-subprocess-local'
+
+- id: bash
+  name: '@deepseek-ai/dsh-bash-local'
+
+# JSONL persistence; sessions land under ./.sessions inside this dir.
+- id: sessions
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: './.sessions'
+
+# Persistence owns durable storage; this policy selects the request,
+# tool-dispatch, and completed-step durability checkpoints.
+- id: session-checkpoints
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'
