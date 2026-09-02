@@ -6,8 +6,9 @@
  * @module @deepseek-ai/dsh-llm/assembler
  */
 
-import { CallId } from './brand.ts'
-import { assertNever } from './never.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import { assertNever } from '@deepseek-ai/dsh-util-values'
+import type { ToolCallId } from './brand.ts'
 import { createMessage } from './message.ts'
 import type { Message, MessageSource } from './message.ts'
 import type { ContentBlock, FinishReason, ReplayEnvelope, StreamChunk, TokenUsage } from './types.ts'
@@ -15,7 +16,7 @@ import type { ContentBlock, FinishReason, ReplayEnvelope, StreamChunk, TokenUsag
 interface PartialBlock {
   blockType: string
   text: string
-  toolCallId?: CallId
+  toolCallId?: ToolCallId
   toolCallName?: string
   toolCallArguments: string
   /** Set by `block-end` — authoritative, and freezes the partial. */
@@ -27,7 +28,8 @@ interface PartialBlock {
  * {@link ContentBlock}s and a final assistant {@link Message}.
  *
  * The agent loop feeds it while logging raw chunks for replay fidelity, then
- * reads `blocks()` / `message()` / `usage` / `finish` once the stream ends.
+ * reads `blocks()` / `message()` / `usage` / `finish` once the stream ends,
+ * or `interruptedBlocks()` when cancellation cut the stream short.
  *
  * Tolerant of delta-only protocols (no block-start/end); deltas arriving for
  * an index already closed by `block-end` are ignored (malformed stream) so a
@@ -110,7 +112,7 @@ export class BlockAssembler {
       case 'reasoning': return { type: 'reasoning', text: partial.text }
       case 'tool-call': return {
         type: 'tool-call',
-        id: partial.toolCallId ?? CallId(`call-${index}`),
+        id: partial.toolCallId ?? brandString<ToolCallId>(`call-${index}`),
         name: partial.toolCallName ?? '',
         arguments: partial.toolCallArguments,
       }
@@ -155,6 +157,25 @@ export class BlockAssembler {
    */
   blocks(): ContentBlock[] {
     return this.assembled().blocks
+  }
+
+  /**
+   * Assemble the prefix an interrupted stream can safely finalize: closed and
+   * open text/reasoning blocks with non-whitespace content, in stream order.
+   * Tool calls are omitted because interruption precedes dispatch; retaining
+   * one would require a fabricated result. Open unknown blocks are also omitted.
+   * @returns the kept blocks; empty when nothing streamed before the interruption.
+   */
+  interruptedBlocks(): ContentBlock[] {
+    return this.order
+      .map((index) => {
+        const partial = this.mustGet(index)
+        const type = partial.block?.type ?? partial.blockType
+        if (type !== 'text' && type !== 'reasoning') return undefined
+        return this.assemble(partial, index)
+      })
+      .filter((block): block is ContentBlock =>
+        (block?.type === 'text' || block?.type === 'reasoning') && block.text.trim() !== '')
   }
 
   /** Usage from the `usage` chunk; undefined until one arrives. */

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import AgentRegistry, { Inbox } from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -33,6 +33,7 @@ function agent(ctx: Context, cwd: string | undefined): Agent {
     version: 0,
     id,
     createdAt: 0,
+    isSeeded: false,
     ...cwd === undefined ? {} : { cwd },
   })
   const value: Agent = {
@@ -66,7 +67,7 @@ function call(
 ) {
   return ctx.tools.execute({
     signal,
-    callId: CallId(`persistent-bash-${++callNumber}`),
+    callId: ToolCallId(`persistent-bash-${++callNumber}`),
     name: 'bash',
     arguments: { command },
     ...owner === undefined ? {} : { agent: owner },
@@ -98,6 +99,7 @@ type StubMode =
   | 'incremental-fallback'
   | 'empty-page-after-latest'
   | 'paged-scrollback'
+  | 'exit-after-send'
 
 class StubPtySession implements TerminalBackendSession {
   readonly motd = 'stub> '
@@ -109,6 +111,7 @@ class StubPtySession implements TerminalBackendSession {
   sends = 0
   pendingText = ''
   historyTruncated = false
+  throwOnSend = false
 
   constructor(mode: StubMode) {
     this.mode = mode
@@ -127,6 +130,7 @@ class StubPtySession implements TerminalBackendSession {
       return this.operation(Promise.resolve(this.result(this.motd, 'stdin_read')))
     }
     if (this.mode === 'send-error') throw new Error('stub send failed')
+    if (this.throwOnSend) throw new Error('PTY session has exited')
     if (this.mode === 'wait-for-abort' || this.mode === 'end-on-abort') {
       const done = new Promise<ReturnType<StubPtySession['result']>>((resolve) => {
         request.signal?.addEventListener('abort', () => {
@@ -170,6 +174,18 @@ class StubPtySession implements TerminalBackendSession {
     if (this.mode === 'incremental-fallback') {
       const incremental = `${start ?? ''}\nincrement\n${this.motd}`
       return this.operation(Promise.resolve(this.result(this.motd, 'stdin_read')), incremental)
+    }
+    if (this.mode === 'exit-after-send') {
+      // A fast `exit` settles the send while the exit event is still in
+      // flight; the shell flips to exited before the tool's next poll,
+      // exactly like the real backend. The tool must re-observe status
+      // instead of sending.
+      const output = `${start ?? ''}\n`
+      this.scrollback += output
+      const settled = this.result(output, 'inferred_idle')
+      this.statusValue = { kind: 'exited', exitCode: 9, signal: null }
+      this.throwOnSend = true
+      return this.operation(Promise.resolve(settled))
     }
     if (this.mode === 'torn-status') {
       const output = `${start ?? ''}\nhello from stub\n${end ?? ''}`
@@ -393,6 +409,21 @@ describe('tool-bash-persistent', () => {
     stub.sessions[0]!.scrollback = ''
 
     expect(text(await call(ctx, owner, 'torn status'))).toBe('hello from stub\n[exit code: 7]')
+  })
+
+  it('reports the exit path when the shell exits between send settlement and the next poll', async () => {
+    const { ctx, owner, stub } = await setup({ backendType: 'stub' })
+    await call(ctx, owner, 'warm up')
+    const session = stub.sessions[0]!
+    session.mode = 'exit-after-send'
+
+    const result = text(await call(ctx, owner, 'exit'))
+    expect(result).toContain('[shell exited: code 9]')
+    expect(result).toContain('next bash call starts from the workspace')
+    expect(session.closed).toContain('persistent bash shell exited')
+
+    expect(text(await call(ctx, owner, 'echo "$PWD"'))).toBe('hello from stub')
+    expect(stub.sessions).toHaveLength(2)
   })
 
   it('reports a shell exit when the backend has no code or signal', async () => {
