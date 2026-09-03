@@ -5,6 +5,17 @@ import type {} from '@deepseek-ai/dsh-tool-supervisor'
 import { SupervisorApiRevisionConflictError, type SupervisorApiContract, type SupervisorApiTask, type SupervisorStatusResponse } from './types.ts'
 
 export * from './types.ts'
+export type {
+  ExecutorCapabilities,
+  PreparedSupervisorExecution,
+  RawExecutionResult,
+  SupervisorChildExecution,
+  SupervisorExecutionHandle,
+  SupervisorExecutionRequest,
+  SupervisorExecutionResult,
+  SupervisorExecutionStatus,
+  SupervisorExecutorProvider,
+} from './executor.ts'
 
 declare module '@deepseek-ai/cordis' { interface Context { supervisorApi: SupervisorApiService } }
 

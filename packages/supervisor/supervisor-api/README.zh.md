@@ -6,6 +6,14 @@
 
 API 以 Cordis 服务（`ctx.supervisorApi`）提供，项目数据读取保持只读。派发、批准和返修仍由编排与交互服务执行，避免客户端绕过权限和生命周期门禁。
 
+外部执行者适配器以 types-only 导入接缝：
+
+```ts
+import type { SupervisorExecutorProvider } from '@deepseek-ai/dsh-supervisor-api/executor'
+```
+
+包根同样再导出这些类型。本包不附带执行者注册表运行时。
+
 ## 模型体验
 
 ### Supervisor API 投影

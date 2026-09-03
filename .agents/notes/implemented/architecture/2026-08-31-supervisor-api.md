@@ -14,9 +14,13 @@ Client surfaces need read and control access to the Supervisor's project, task, 
 
 Responses are versioned with `version: 1`. Read endpoints expose the singleton identity and project/task/run/notification snapshots with status, project, task, and unread filters. Owner review is guarded by optimistic revision checks: every action carries `expectedRevision`, and a stale task revision that reaches the control port returns `supervisor-conflict` with the expected and actual revisions. A client child reference is explicitly `readOnly: true`; transcript reads and writes remain owned by the existing Session APIs. The projection does not expose hidden reasoning, credentials, raw stderr, or project-file mutation.
 
+For cross-plugin executor adapters (CDH Phase A), the package also **re-exports the executor seam types** (`SupervisorExecutorProvider`, request/prepare/result types) from `@deepseek-ai/dsh-supervisor-executor-subagent` via `export type` on the package root and the `@deepseek-ai/dsh-supervisor-api/executor` subpath. Foreign packages implement the seam with a types-only import and must not reverse-depend on this plugin's runtime registry; this package adds no runtime executor symbols.
+
 ## Testing
 
 `packages/host/apiproxy/tests/api-proxy-supervisor.spec.ts` covers versioned request/response parsing (unversioned and malformed values are rejected at the client boundary), the fails-closed absent-bundle composition, project/task/run/notification filters, read-only child references, and stale-revision `supervisor-conflict` preservation from the control port.
+
+`packages/supervisor/supervisor-api/tests/executor-export.spec.ts` pins that a structural `SupervisorExecutorProvider` is assignable through the types-only export.
 
 ## Alternatives considered
 

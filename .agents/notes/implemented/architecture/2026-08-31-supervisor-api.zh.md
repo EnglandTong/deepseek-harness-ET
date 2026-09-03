@@ -14,9 +14,13 @@ Status: implemented
 
 响应以 `version: 1` 标记版本。读取端点暴露单例身份以及带状态、项目、任务和未读过滤的项目／任务／运行／通知快照。用户审阅由乐观 revision 检查保护：每个动作携带 `expectedRevision`，到达控制端口的陈旧任务 revision 返回带期望值与实际值的 `supervisor-conflict`。客户端子会话引用明确标记 `readOnly: true`；transcript 的读取和写入仍由已有 Session API 负责。投影不暴露隐藏推理、凭证、原始 stderr 或项目文件修改。
 
+面向跨插件执行者适配器（CDH 阶段 A），本包还通过 `export type` 在包根与 `@deepseek-ai/dsh-supervisor-api/executor` 子路径上**再导出执行者接缝类型**（`SupervisorExecutorProvider` 及 request/prepare/result 类型），权威定义仍在 `@deepseek-ai/dsh-supervisor-executor-subagent`。外部包以 types-only 导入实现接缝，不得反向依赖本插件的运行时注册表；本包不新增执行者运行时符号。
+
 ## 测试
 
 `packages/host/apiproxy/tests/api-proxy-supervisor.spec.ts` 覆盖版本化请求／响应解析（在客户端边界拒绝未带版本和畸形的值）、失败关闭的未挂载组合、项目／任务／运行／通知过滤、只读子会话引用，以及从控制端口透传的陈旧 revision `supervisor-conflict`。
+
+`packages/supervisor/supervisor-api/tests/executor-export.spec.ts` 钉住经 types-only 导出的结构化 `SupervisorExecutorProvider` 可赋值性。
 
 ## 考虑过的备选
 

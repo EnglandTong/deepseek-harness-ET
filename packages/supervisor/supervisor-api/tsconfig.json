@@ -5,6 +5,7 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../supervisor" },
+    { "path": "../supervisor-executor-subagent" },
     { "path": "../supervisor-orchestrator" },
     { "path": "../tool-supervisor" },
     { "path": "../../runtime-diagnostics/invariants" }
