@@ -2,6 +2,7 @@
 
 import type {
   SupervisorIdentityEvent,
+  SupervisorIdBindingEvent,
   SupervisorNotificationEvent,
   SupervisorPolicyAppliedEvent,
   SupervisorProjectEvent,
@@ -19,6 +20,8 @@ declare module '@deepseek-ai/dsh-session/types' {
     'supervisor/task': Omit<SupervisorTaskEvent, 'type'>
     /** Task/run/child-session association emitted by the project host. */
     'supervisor/run-linked': Omit<SupervisorRunLinkedEvent, 'type'>
+    /** Cross-plugin id chain emitted by the governance executor bridge. */
+    'supervisor/id-binding': Omit<SupervisorIdBindingEvent, 'type'>
     /** Applied routing policy evidence emitted by the orchestrator. */
     'supervisor/policy-applied': Omit<SupervisorPolicyAppliedEvent, 'type'>
     /** User-facing notification emitted by the orchestrator. */

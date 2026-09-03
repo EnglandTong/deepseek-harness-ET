@@ -1,6 +1,7 @@
 /** Deterministic Supervisor event replay and task transition invariants. */
 
 import type {
+  SupervisorIdBinding,
   SupervisorNotification,
   SupervisorPolicyApplied,
   SupervisorProjectSnapshot,
@@ -17,6 +18,7 @@ export interface SupervisorProjection {
   readonly projects: ReadonlyMap<string, SupervisorProjectSnapshot>
   readonly tasks: ReadonlyMap<string, SupervisorTaskSnapshot>
   readonly runs: ReadonlyMap<string, SupervisorRunLink>
+  readonly bindings: ReadonlyMap<string, SupervisorIdBinding>
   readonly policies: ReadonlyMap<string, SupervisorPolicyApplied>
   readonly notifications: ReadonlyMap<string, SupervisorNotification>
 }
@@ -57,6 +59,7 @@ export function foldSupervisor(events: readonly SupervisorEvent[]): SupervisorPr
   const projects = new Map<string, SupervisorProjectSnapshot>()
   const tasks = new Map<string, SupervisorTaskSnapshot>()
   const runs = new Map<string, SupervisorRunLink>()
+  const bindings = new Map<string, SupervisorIdBinding>()
   const policies = new Map<string, SupervisorPolicyApplied>()
   const notifications = new Map<string, SupervisorNotification>()
   for (const event of events) {
@@ -75,12 +78,13 @@ export function foldSupervisor(events: readonly SupervisorEvent[]): SupervisorPr
         break
       }
       case 'supervisor/run-linked': foldRevision(runs, event.snapshot.runId, event.snapshot); break
+      case 'supervisor/id-binding': foldRevision(bindings, event.snapshot.supervisorTaskId, event.snapshot); break
       case 'supervisor/policy-applied': foldRevision(policies, event.snapshot.taskId, event.snapshot); break
       case 'supervisor/notification': foldRevision(notifications, event.snapshot.id, event.snapshot); break
       default: assertNever(event)
     }
   }
-  return { identity, projects, tasks, runs, policies, notifications }
+  return { identity, projects, tasks, runs, bindings, policies, notifications }
 }
 
 function foldRevision<T extends { readonly revision: number }>(map: Map<string, T>, key: string, next: T): void {

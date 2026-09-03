@@ -3,6 +3,7 @@
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type {
   SupervisorIdentitySnapshot,
+  SupervisorIdBinding,
   SupervisorNotification,
   SupervisorPolicyApplied,
   SupervisorProjectSnapshot,
@@ -19,6 +20,7 @@ export type SupervisorEvent =
   | { readonly type: 'supervisor/project'; readonly version: typeof SUPERVISOR_EVENT_VERSION; readonly snapshot: SupervisorProjectSnapshot }
   | { readonly type: 'supervisor/task'; readonly version: typeof SUPERVISOR_EVENT_VERSION; readonly snapshot: SupervisorTaskSnapshot }
   | { readonly type: 'supervisor/run-linked'; readonly version: typeof SUPERVISOR_EVENT_VERSION; readonly snapshot: SupervisorRunLink }
+  | { readonly type: 'supervisor/id-binding'; readonly version: typeof SUPERVISOR_EVENT_VERSION; readonly snapshot: SupervisorIdBinding }
   | { readonly type: 'supervisor/policy-applied'; readonly version: typeof SUPERVISOR_EVENT_VERSION; readonly snapshot: SupervisorPolicyApplied }
   | { readonly type: 'supervisor/notification'; readonly version: typeof SUPERVISOR_EVENT_VERSION; readonly snapshot: SupervisorNotification }
 
@@ -30,6 +32,8 @@ export type SupervisorProjectEvent = Extract<SupervisorEvent, { readonly type: '
 export type SupervisorTaskEvent = Extract<SupervisorEvent, { readonly type: 'supervisor/task' }>
 /** Event envelope narrowed to one Cordis event name. */
 export type SupervisorRunLinkedEvent = Extract<SupervisorEvent, { readonly type: 'supervisor/run-linked' }>
+/** Event envelope narrowed to one Cordis event name. */
+export type SupervisorIdBindingEvent = Extract<SupervisorEvent, { readonly type: 'supervisor/id-binding' }>
 /** Event envelope narrowed to one Cordis event name. */
 export type SupervisorPolicyAppliedEvent = Extract<SupervisorEvent, { readonly type: 'supervisor/policy-applied' }>
 /** Event envelope narrowed to one Cordis event name. */
@@ -45,18 +49,19 @@ export function assertSupervisorEvent(event: unknown): asserts event is Supervis
   if (value.version !== SUPERVISOR_EVENT_VERSION) throw new Error(`unsupported Supervisor event version ${String(value.version)}`)
   const type = value.type
   const snapshot = value.snapshot
-  if (typeof type !== 'string' || !['supervisor/identity', 'supervisor/project', 'supervisor/task', 'supervisor/run-linked', 'supervisor/policy-applied', 'supervisor/notification'].includes(type)) {
+  if (typeof type !== 'string' || !['supervisor/identity', 'supervisor/project', 'supervisor/task', 'supervisor/run-linked', 'supervisor/id-binding', 'supervisor/policy-applied', 'supervisor/notification'].includes(type)) {
     throw new Error(`unknown Supervisor event type ${String(type)}`)
   }
   if (typeof snapshot !== 'object' || snapshot === null) throw new Error(`Supervisor event ${type} requires an object snapshot`)
   const data = snapshot as Record<string, unknown>
   if (!Number.isSafeInteger(data.revision) || (data.revision as number) < 1) throw new Error(`Supervisor event ${type} requires a positive revision`)
-  const requireString = (field: string): void => { if (typeof data[field] !== 'string' || (data[field]).length === 0) throw new Error(`Supervisor event ${type} requires non-empty ${field}`) }
+  const requireString = (field: string): void => { if (typeof data[field] !== 'string' || (data[field] as string).length === 0) throw new Error(`Supervisor event ${type} requires non-empty ${field}`) }
   const optionalString = (field: string): void => { if (data[field] !== undefined && typeof data[field] !== 'string') throw new Error(`Supervisor event ${type} optional ${field} must be a string`) }
   if (type === 'supervisor/identity') { requireString('id'); requireString('sessionId'); requireString('createdAt') }
   if (type === 'supervisor/project') { requireString('id'); requireString('displayName'); requireString('realPath'); requireString('registeredAt'); if (!['registered', 'unavailable', 'removed'].includes(String(data.status))) throw new Error('invalid Supervisor project status') }
   if (type === 'supervisor/task') { requireString('id'); requireString('projectId'); requireString('title'); if (typeof data.description !== 'string') throw new Error('Supervisor task description must be a string'); requireString('nextAction'); optionalString('blocker'); if (!['Captured', 'Classified', 'AwaitingApproval', 'Ready', 'Dispatched', 'Running', 'NeedsOwnerDecision', 'NeedsFix', 'ReadyForReview', 'Failed', 'Cancelled', 'Accepted'].includes(String(data.status))) throw new Error('invalid Supervisor task status') }
   if (type === 'supervisor/run-linked') { for (const field of ['runId', 'taskId', 'projectId', 'hostSessionId', 'childSessionId', 'executor']) requireString(field); if (typeof data.writeAccess !== 'boolean') throw new Error('Supervisor run link writeAccess must be boolean') }
+  if (type === 'supervisor/id-binding') { for (const field of ['supervisorTaskId', 'governanceTaskId', 'childSessionId']) requireString(field); optionalString('runId') }
   if (type === 'supervisor/policy-applied') { requireString('taskId'); requireString('policyVersion'); requireString('executor'); requireString('reason'); optionalString('model'); if (typeof data.requiresApproval !== 'boolean') throw new Error('Supervisor policy requiresApproval must be boolean') }
   if (type === 'supervisor/notification') { requireString('id'); requireString('message'); requireString('createdAt'); optionalString('taskId'); optionalString('projectId'); if (typeof data.unread !== 'boolean') throw new Error('Supervisor notification unread must be boolean'); if (!['owner-decision', 'blocked', 'failed', 'ready-for-review', 'review-failed', 'policy-gate'].includes(String(data.kind))) throw new Error('invalid Supervisor notification kind') }
 }
@@ -77,7 +82,8 @@ export function supervisorEventFromSessionEvent(event: SessionEvent): Supervisor
 
 function isSupervisorEventType(value: string): value is SupervisorEvent['type'] {
   return value === 'supervisor/identity' || value === 'supervisor/project' || value === 'supervisor/task'
-    || value === 'supervisor/run-linked' || value === 'supervisor/policy-applied' || value === 'supervisor/notification'
+    || value === 'supervisor/run-linked' || value === 'supervisor/id-binding'
+    || value === 'supervisor/policy-applied' || value === 'supervisor/notification'
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -102,6 +108,11 @@ declare module '@deepseek-ai/cordis' {
      * @param event - versioned task execution association.
      */
     'supervisor/run-linked'(event: SupervisorRunLinkedEvent): void
+    /** Emitted when a supervisor ↔ governance ↔ child id chain is recorded.
+     * @mode emit
+     * @param event - versioned cross-plugin id binding.
+     */
+    'supervisor/id-binding'(event: SupervisorIdBindingEvent): void
     /** Emitted when a routing policy decision is recorded for a task.
      * @mode emit
      * @param event - versioned applied routing policy evidence.

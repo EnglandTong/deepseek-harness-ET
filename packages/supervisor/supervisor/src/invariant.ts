@@ -25,6 +25,11 @@ export function assertSupervisorProjection(projection: SupervisorProjection): vo
     if (task === undefined || task.projectId !== value.projectId) throw new Error(`Supervisor run ${key} references an inconsistent task/project`)
     if (String(value.hostSessionId).length === 0 || String(value.childSessionId).length === 0 || value.executor.trim().length === 0) throw new Error(`Supervisor run ${key} has incomplete link fields`)
   }
+  for (const [key, value] of projection.bindings) {
+    assertRevision(key, value.revision)
+    if (String(value.supervisorTaskId) !== key) throw new Error(`Supervisor binding map key ${key} does not match snapshot id`)
+    if (value.governanceTaskId.trim().length === 0 || String(value.childSessionId).length === 0) throw new Error(`Supervisor binding ${key} has incomplete id-chain fields`)
+  }
   for (const [key, value] of projection.policies) { assertRevision(key, value.revision); if (!projection.tasks.has(value.taskId)) throw new Error(`Supervisor policy ${key} references an unknown task`); if (typeof value.model !== 'undefined' && typeof value.model !== 'string') throw new Error(`Supervisor policy ${key} model must be a string`) }
   for (const [key, value] of projection.notifications) {
     assertRevision(key, value.revision)

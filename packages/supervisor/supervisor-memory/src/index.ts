@@ -153,6 +153,9 @@ export function summarizeSupervisorMemory(
           { kind: 'session' as const, value: String(run.childSessionId) },
           { kind: 'session' as const, value: String(run.hostSessionId) },
         ]),
+        ...[...projection.supervisor.bindings.values()]
+          .filter(binding => tasks.some(task => task.id === binding.supervisorTaskId))
+          .map(binding => ({ kind: 'governance' as const, value: binding.governanceTaskId })),
         ...policies.map(policy => ({ kind: 'policy' as const, value: policy.policyVersion })),
         ...governanceReference(governanceState),
       ],
@@ -287,6 +290,7 @@ export class SupervisorMemoryService extends Service {
     ctx.on('supervisor/project', (event) => { this.append(event) })
     ctx.on('supervisor/task', (event) => { this.append(event) })
     ctx.on('supervisor/run-linked', (event) => { this.append(event) })
+    ctx.on('supervisor/id-binding', (event) => { this.append(event) })
     ctx.on('supervisor/policy-applied', (event) => { this.append(event) })
     ctx.on('supervisor/notification', (event) => { this.append(event) })
   }
@@ -396,6 +400,7 @@ function projectIdForEvent(event: SupervisorEvent): SupervisorProjectId | undefi
     case 'supervisor/task': return event.snapshot.projectId
     case 'supervisor/run-linked': return event.snapshot.projectId
     case 'supervisor/notification': return event.snapshot.projectId
+    case 'supervisor/id-binding': return undefined
     case 'supervisor/policy-applied': return undefined
     case 'supervisor/identity': return undefined
     default: return assertNever(event)

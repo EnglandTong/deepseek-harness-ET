@@ -215,7 +215,7 @@ export class SupervisorSessionService extends Service {
     const record = (event: Exclude<SupervisorEvent, SupervisorIdentityEvent>): void => {
       if (!this.stopping) this.recordSupervisorEvent(event)
     }
-    for (const eventType of ['supervisor/project', 'supervisor/task', 'supervisor/run-linked', 'supervisor/policy-applied', 'supervisor/notification'] as const) {
+    for (const eventType of ['supervisor/project', 'supervisor/task', 'supervisor/run-linked', 'supervisor/id-binding', 'supervisor/policy-applied', 'supervisor/notification'] as const) {
       this.eventDisposers.push(this.ctx.on(eventType, record))
     }
   }
@@ -231,6 +231,7 @@ export class SupervisorSessionService extends Service {
       case 'supervisor/project':
       case 'supervisor/task':
       case 'supervisor/run-linked':
+      case 'supervisor/id-binding':
       case 'supervisor/policy-applied':
       case 'supervisor/notification': {
         const { type, ...data } = event

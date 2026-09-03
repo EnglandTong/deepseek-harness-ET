@@ -40,6 +40,21 @@ describe('Supervisor public contract', () => {
     expect(() => foldSupervisor([first, { ...second, snapshot: { ...second.snapshot, revision: 4 } }])).toThrow(/increment/)
   })
 
+  it('folds supervisor/id-binding into the projection by supervisor task id', () => {
+    const binding = {
+      type: 'supervisor/id-binding' as const,
+      version: SUPERVISOR_EVENT_VERSION,
+      snapshot: {
+        revision: 1,
+        supervisorTaskId: task,
+        governanceTaskId: 'governance-1',
+        childSessionId: SessionId('child-1'),
+      },
+    }
+    expect(foldSupervisor([binding]).bindings.get('task-a')?.governanceTaskId).toBe('governance-1')
+    assertSupervisorEvent(binding)
+  })
+
   it('validates event version and revision at the durable boundary', () => {
     const event = { type: 'supervisor/project' as const, version: SUPERVISOR_EVENT_VERSION, snapshot: {
       id: project, revision: 1, displayName: 'A', realPath: 'C:/A', status: 'registered' as const, registeredAt: '2026-01-01T00:00:00Z',
@@ -60,6 +75,6 @@ describe('Supervisor public contract', () => {
   })
 
   it('rejects malformed projection identity and references', () => {
-    expect(() =>{  assertSupervisorProjection({ identity: { id: SupervisorId('s'), revision: 0, sessionId: SessionId('ss'), createdAt: 'now' }, projects: new Map(), tasks: new Map(), runs: new Map(), policies: new Map(), notifications: new Map() }) }).toThrow(/revision/)
+    expect(() =>{  assertSupervisorProjection({ identity: { id: SupervisorId('s'), revision: 0, sessionId: SessionId('ss'), createdAt: 'now' }, projects: new Map(), tasks: new Map(), runs: new Map(), bindings: new Map(), policies: new Map(), notifications: new Map() }) }).toThrow(/revision/)
   })
 })

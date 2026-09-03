@@ -40,7 +40,20 @@ export * from './invariant.ts'
 export * from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
-  interface Context { supervisorOrchestrator: SupervisorOrchestratorService }
+  interface Context {
+    supervisorOrchestrator: SupervisorOrchestratorService
+    /** Optional CDH accept bridge; present when the governance executor plugin is mounted. */
+    supervisorGovernanceBridge?: SupervisorGovernanceAcceptBridge
+  }
+}
+
+/** Trusted host surface for closing a governance task after owner review. */
+export interface SupervisorGovernanceAcceptBridge {
+  acceptAfterReview(
+    governanceTaskId: string,
+    outcome: 'accepted' | 'needs-fix',
+    reason?: string,
+  ): void
 }
 
 interface TaskRecord {
@@ -432,7 +445,20 @@ export class SupervisorOrchestratorService extends Service {
     this.assertRevision(record, expectedRevision)
     if (record.snapshot.status !== 'ReadyForReview') throw new SupervisorOrchestratorError('INVALID_STATUS', `task '${taskId}' is not ready for review`)
     this.publishTask(record, outcome === 'accepted' ? 'Accepted' : 'NeedsFix', outcome === 'accepted' ? undefined : 'Owner requested a fix')
+    this.closeGovernanceAfterReview(taskId, outcome)
     return record.snapshot
+  }
+
+  /** Close the governance execution layer after the owner decision (no-op when unbound). */
+  private closeGovernanceAfterReview(taskId: SupervisorTaskId, outcome: 'accepted' | 'needs-fix'): void {
+    const bridge = this.ctx.supervisorGovernanceBridge
+    if (bridge === undefined) return
+    type BindingView = { readonly governanceTaskId: string }
+    type MemoryView = { project?: () => { supervisor: { bindings: ReadonlyMap<string, BindingView> } } }
+    const memory = this.ctx.get('supervisorMemory') as MemoryView | undefined
+    const binding = memory?.project?.().supervisor.bindings.get(String(taskId))
+    if (binding === undefined) return
+    bridge.acceptAfterReview(binding.governanceTaskId, outcome)
   }
 
   /**

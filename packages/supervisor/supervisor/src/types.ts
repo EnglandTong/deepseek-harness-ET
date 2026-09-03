@@ -86,6 +86,18 @@ export interface SupervisorRunLink {
   readonly writeAccess: boolean
 }
 
+/**
+ * Cross-plugin id chain for a governed dispatch (supervisor ↔ governance ↔ child).
+ * Written at executor prepare time; replayed through supervisor-memory.
+ */
+export interface SupervisorIdBinding {
+  readonly revision: number
+  readonly supervisorTaskId: SupervisorTaskId
+  readonly governanceTaskId: string
+  readonly childSessionId: SessionId
+  readonly runId?: SupervisorRunId
+}
+
 /** User-facing critical notification. */
 export interface SupervisorNotification {
   readonly revision: number

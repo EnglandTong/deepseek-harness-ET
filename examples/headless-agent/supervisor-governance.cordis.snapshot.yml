@@ -1,0 +1,76 @@
+# Keyless dual-plugin composition (CDH Phase A): Personal Supervisor stack plus
+# governance runtime and the supervisor-executor-governance adapter. Route YAML
+# written by the scenario selects `executor: supervisor-governance`.
+#
+# Full loader-smoke with a live HarnessAdapter is covered by the composition
+# suite in packages/executor/supervisor-executor-governance; this YAML documents
+# the assembled profile shape for dual-bundle mounts.
+
+- id: persistence
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: settings
+  name: '@deepseek-ai/dsh-settings-file'
+
+- id: replay
+  name: '@deepseek-ai/dsh-llm-replay'
+
+- id: agent
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    agents: []
+    workspaceContext: false
+    skills:
+      enabled: false
+    toolBash: false
+    toolJobs: false
+    goals: false
+
+- id: commands
+  name: '@deepseek-ai/dsh-commands'
+
+- id: supervisor
+  name: '@deepseek-ai/dsh-supervisor'
+- id: supervisor-session
+  name: '@deepseek-ai/dsh-supervisor-session'
+- id: supervisor-project-registry
+  name: '@deepseek-ai/dsh-supervisor-project-registry'
+- id: supervisor-project-host
+  name: '@deepseek-ai/dsh-supervisor-project-host'
+- id: supervisor-executors
+  name: '@deepseek-ai/dsh-supervisor-executor-subagent'
+- id: agent-governance
+  name: '@deepseek-ai/dsh-agent-governance'
+  config:
+    requireApproval: true
+    watch: false
+    includeDefaultRoots: false
+- id: supervisor-executor-governance
+  name: '@deepseek-ai/dsh-supervisor-executor-governance'
+  config:
+    providerName: supervisor-governance
+    providers: [dsh-sdk]
+    permissions: [none, read, write]
+- id: supervisor-orchestrator
+  name: '@deepseek-ai/dsh-supervisor-orchestrator'
+  config:
+    maxRepairAttempts: 2
+    autoDispatch: true
+    retryOnFailure: true
+- id: supervisor-memory
+  name: '@deepseek-ai/dsh-supervisor-memory'
+  config:
+    maxSummaryChars: 1200
+    maxBriefSummaries: 12
+    maxBriefNotifications: 12
+    compactionThreshold: 0.75
+- id: supervisor-interaction
+  name: '@deepseek-ai/dsh-tool-supervisor'
+  config:
+    wakeupOnNotification: false
+
+- id: supervisor-routing
+  name: './tests/fixtures/supervisor-router.mjs'
