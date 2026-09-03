@@ -256,7 +256,7 @@ function renderTask(task: SupervisorTaskSnapshot): string {
 }
 
 function routeView(ctx: Context, rawInput: string): CommandResult {
-  const parsed = argsOrUsage(rawInput, 'Usage: /supervisor_route <taskId> [high-risk]')
+  const parsed = argsOrUsage(rawInput, 'Usage: /supervisor_route <taskId> [high-risk] [--type=<task type>]')
   if (typeof parsed !== 'string') return parsed
   const taskToken = parsed.split(/\s+/u)[0]
   if (taskToken === undefined || taskToken.length === 0) return { kind: 'error', text: 'A task id is required.' }
@@ -266,8 +266,10 @@ function routeView(ctx: Context, rawInput: string): CommandResult {
   const router = ctx.supervisor.listRouters().find(candidate => typeof (candidate as { resolve?: unknown }).resolve === 'function') as { resolve(request: RouteRequest): ResolvedRouteDecision } | undefined
   if (router === undefined) return { kind: 'error', text: 'No Supervisor routing provider is available.' }
   const project = ctx.supervisor.getProject(task.projectId)
-  const highRisk = parsed.split(/\s+/u).slice(1).some(value => value.toLowerCase() === 'high-risk')
-  const decision = router.resolve({ taskId, projectId: task.projectId, ...(project?.realPath === undefined ? {} : { projectPath: project.realPath }), taskType: 'supervisor-command', highRisk })
+  const tail = parsed.split(/\s+/u).slice(1)
+  const highRisk = tail.some(value => value.toLowerCase() === 'high-risk')
+  const taskType = tail.map(value => TASK_TYPE_FLAG.exec(` ${value}`)?.[1]).find(value => value !== undefined)
+  const decision = router.resolve({ taskId, projectId: task.projectId, ...(project?.realPath === undefined ? {} : { projectPath: project.realPath }), taskType: taskType ?? 'supervisor-command', highRisk })
   return result(`Route for ${taskId}: ${decision.decision.executor}${decision.decision.model === undefined ? '' : `/${decision.decision.model}`}\napproval=${decision.approval}; dispatchable=${decision.dispatchable}; reason=${decision.decision.reason}`)
 }
 
@@ -285,7 +287,7 @@ function registerDefinitions(ctx: Context, runtime: SupervisorInteractionRuntime
     command('supervisor_followup', 'send an owner follow-up to one task', invocation => executeFollowUp(runtime, invocation), '<taskId> <revision> <next action> :: <message>'),
     command('supervisor_interrupt', 'interrupt one exact Supervisor run', invocation => executeInterrupt(runtime, invocation), '<taskId>'),
     command('supervisor_cancel', 'cancel one exact Supervisor run', invocation => executeInterrupt(runtime, invocation), '<taskId>'),
-    command('supervisor_capture', 'capture one new Supervisor task for a registered project', invocation => executeCapture(runtime, invocation), '<projectId> <title> :: <description> :: <next action> [--high-risk] [--perm=<ceiling>]'),
+    command('supervisor_capture', 'capture one new Supervisor task for a registered project', invocation => executeCapture(runtime, invocation), '<projectId> <title> :: <description> :: <next action> [--high-risk] [--perm=<ceiling>] [--type=<task type>]'),
     command('supervisor_review', 'record an owner review outcome', invocation => executeReview(runtime, invocation), '<taskId> <revision> accept|needs-fix'),
   ]
 }
@@ -333,9 +335,10 @@ function executeFollowUp(runtime: SupervisorInteractionRuntime, invocation: Comm
   return runtime.orchestrator.followUp({ taskId: SupervisorTaskId(match[1]), expectedRevision: Number(match[2]), prompt, nextAction: match[3].trim() }).then(value => result(`Follow-up accepted for ${value.task.id}; started ${value.runId}.`)).catch(failure)
 }
 
-const CAPTURE_USAGE = 'Usage: /supervisor_capture <projectId> <title> :: <description> :: <next action> [--high-risk] [--perm=<ceiling>]'
+const CAPTURE_USAGE = 'Usage: /supervisor_capture <projectId> <title> :: <description> :: <next action> [--high-risk] [--perm=<ceiling>] [--type=<task type>]'
 const HIGH_RISK_FLAG = /(?:^|\s)--high-risk(?=\s|$)/u
 const PERMISSION_FLAG = /(?:^|\s)--perm=(none|read|write|execute|admin)(?=\s|$)/u
+const TASK_TYPE_FLAG = /(?:^|\s)--type=(\S+)(?=\s|$)/u
 
 function executeCapture(runtime: SupervisorInteractionRuntime, invocation: CommandInvocation): Promise<CommandResult> {
   const orchestrator = runtime.orchestrator
@@ -347,6 +350,9 @@ function executeCapture(runtime: SupervisorInteractionRuntime, invocation: Comma
   if (permissionMatch === null && /(?:^|\s)--perm=/u.test(input)) return Promise.resolve({ kind: 'error', text: CAPTURE_USAGE })
   const permission = (permissionMatch?.[1] ?? 'read') as PermissionCeiling
   input = input.replace(PERMISSION_FLAG, ' ').trim()
+  const taskTypeMatch = TASK_TYPE_FLAG.exec(input)
+  if (taskTypeMatch === null && /(?:^|\s)--type=/u.test(input)) return Promise.resolve({ kind: 'error', text: CAPTURE_USAGE })
+  input = input.replace(TASK_TYPE_FLAG, ' ').trim()
   const sections = input.split(/\s+::\s+/u).map(section => section.trim())
   if (sections.length !== 3 || sections.some(section => section.length === 0)) return Promise.resolve({ kind: 'error', text: CAPTURE_USAGE })
   const head = sections[0]
@@ -363,7 +369,7 @@ function executeCapture(runtime: SupervisorInteractionRuntime, invocation: Comma
     nextAction,
     prompt: [{ type: 'text', text: `${title}\n\n${description}` }],
     parent: invocation.agent,
-    route: { taskType: 'supervisor-command', requestedPermission: permission, ...(highRisk ? { highRisk: true } : {}) },
+    route: { taskType: taskTypeMatch?.[1] ?? 'supervisor-command', requestedPermission: permission, ...(highRisk ? { highRisk: true } : {}) },
     permission,
   }
   return orchestrator.capture(request).then((captured) => {

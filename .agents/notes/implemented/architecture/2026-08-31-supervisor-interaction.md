@@ -12,9 +12,11 @@ The main assistant needs human command entry into the Supervisor portfolio, `@�
 
 `@deepseek-ai/dsh-tool-supervisor` owns human command registration, singleton `@总控` intake delivery, and critical notification coalescing. It consumes the frozen Supervisor service and the orchestrator's public behavior; it does not add project state or modify the agent loop.
 
+Capture and route commands carry a real routing task type: `/supervisor_capture ... --type=<type>` and `/supervisor_route <taskId> [--type=<type>]` forward the value to the routing request verbatim, defaulting to `supervisor-command` when the flag is absent, so policy rules can select read-only inspection routes differently from development routes without hard-coded keyword routing inside this package.
+
 ## Testing
 
-`packages/supervisor/tool-supervisor/tests/interaction.spec.ts` covers command registration with a real status dispatch, revision arguments on dispatch, intake deduplication, cold-session delivery, notification coalescing, and invalid intake rejection.
+`packages/supervisor/tool-supervisor/tests/interaction.spec.ts` covers command registration with a real status dispatch, revision arguments on dispatch, intake deduplication, cold-session delivery, notification coalescing, and invalid intake rejection, plus `--type` forwarding, the `supervisor-command` default, and malformed-flag usage rejection.
 
 ## Alternatives considered
 

@@ -113,6 +113,31 @@ describe('supervisor_capture and supervisor_review commands', () => {
     expect(received?.route).not.toHaveProperty('highRisk')
   })
 
+  it('forwards the --type flag as the routing task type and defaults without it', async () => {
+    let received: SupervisorCaptureRequest | undefined
+    const capture = vi.fn(async (request: SupervisorCaptureRequest) => { received = request; return { task: task(), route: captureRoute('auto') } })
+    const h = await boot({ capture })
+    h.ctx.agents.register(h.main)
+    await expect(h.ctx.commands.execute(h.main, '/supervisor_capture project-a Ship the parser :: Rewrite the tokenizer :: Open a review --type=coding', [], new AbortController().signal))
+      .resolves.toMatchObject({ result: { kind: 'success' } })
+    expect(received?.route.taskType).toBe('coding')
+    let defaulted: SupervisorCaptureRequest | undefined
+    const second = await boot({ capture: vi.fn(async (request: SupervisorCaptureRequest) => { defaulted = request; return { task: task(), route: captureRoute('auto') } }) })
+    second.ctx.agents.register(second.main)
+    await expect(second.ctx.commands.execute(second.main, '/supervisor_capture project-a Inspect logs :: Read recent errors :: Report findings', [], new AbortController().signal))
+      .resolves.toMatchObject({ result: { kind: 'success' } })
+    expect(defaulted?.route.taskType).toBe('supervisor-command')
+  })
+
+  it('rejects a malformed --type flag with usage text', async () => {
+    const capture = vi.fn()
+    const h = await boot({ capture })
+    h.ctx.agents.register(h.main)
+    await expect(h.ctx.commands.execute(h.main, '/supervisor_capture project-a T :: D :: N --type=', [], new AbortController().signal))
+      .resolves.toMatchObject({ result: { kind: 'error', text: expect.stringContaining('Usage: /supervisor_capture') as string } })
+    expect(capture).not.toHaveBeenCalled()
+  })
+
   it('rejects malformed capture input and unknown permission values with usage text', async () => {
     const capture = vi.fn()
     const h = await boot({ capture })

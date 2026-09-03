@@ -12,9 +12,11 @@ Status: implemented
 
 `@deepseek-ai/dsh-tool-supervisor` 负责人工命令注册、唯一 `@总控` intake 转交和关键通知合并。它消费已冻结的 Supervisor 服务和编排器公共行为，不增加项目状态，也不修改 Agent loop。
 
+捕获与路由命令携带真实路由任务类型：`/supervisor_capture ... --type=<type>` 与 `/supervisor_route <taskId> [--type=<type>]` 把该值原样转发给路由请求，缺省回退 `supervisor-command`，使策略规则得以区分只读检查与开发任务，而无需在本包内做硬编码关键词路由。
+
 ## 测试
 
-`packages/supervisor/tool-supervisor/tests/interaction.spec.ts` 覆盖带真实 status 派发的命令注册、dispatch 的 revision 参数、intake 去重、冷 Session 转交、通知合并和无效 intake 拒绝。
+`packages/supervisor/tool-supervisor/tests/interaction.spec.ts` 覆盖带真实 status 派发的命令注册、dispatch 的 revision 参数、intake 去重、冷 Session 转交、通知合并和无效 intake 拒绝，以及 `--type` 转发、`supervisor-command` 缺省与畸形 flag 的 usage 拒绝。
 
 ## 考虑过的备选
 
