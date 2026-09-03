@@ -9,7 +9,7 @@ This repository is the working fork of [deepseek-ai/deepseek-harness](https://gi
 
 ## What belongs here
 
-- **The desktop client only**: `examples/desktop` (Electron desktop shell, restored on branch `agent/desktop-electron`) and the app-side glue it needs (`apps/` bins, packaging). Everything else tracks upstream.
+- **The desktop client only**: `apps/desktop` — a thin Electron window that starts `dsh web --no-open` and shows the official Web UI (including Settings → Plugins import). `packages/host/plugin-import` is the fork's other non-upstream piece (web plugin-bundle import). Everything else tracks upstream.
 
 ## What does NOT belong here
 
@@ -21,7 +21,7 @@ This repository is the working fork of [deepseek-ai/deepseek-harness](https://gi
 ## Relationship to the other two directories
 
 - `D:\Development\deepseek-harness` — read-only upstream mirror; sync only, never modify.
-- This fork follows upstream `master`; keep it releasable. Feature work goes on `agent/*` branches (e.g. `agent/desktop-electron`).
+- This fork follows upstream `master`; keep it releasable. Feature work goes on `agent/*` branches.
 
 ## CMS rules
 

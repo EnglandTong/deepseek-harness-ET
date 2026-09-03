@@ -1,0 +1,14 @@
+{
+  "name": "@deepseek-ai/dsh-desktop-web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Thin Electron window that starts dsh web and shows the official Web UI.",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}
