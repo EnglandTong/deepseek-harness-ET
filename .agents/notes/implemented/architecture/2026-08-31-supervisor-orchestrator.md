@@ -14,11 +14,11 @@ The controller needs a bounded task loop that cannot auto-accept work and cannot
 
 Completed execution enters `ReadyForReview`; the service never promotes an execution result to `Accepted` — `Accepted` is published only by the owner's explicit `review()` decision. Failed executions are classified with a deterministic signature and receive at most the configured number of new repair attempts. A repeated signature emits a blocked notification and stops automatic repair. Disposal cancels exact active handles and clears process-local control state.
 
-Startup replays the restored controller ledger into task state and reconciles tasks that cannot resume execution to the owner as `NeedsOwnerDecision`.
+Startup replays the restored controller ledger into task state and reconciles tasks that cannot resume execution to the owner as `NeedsOwnerDecision`. After the replay, the orchestrator also feeds every durable `run-linked` record in the ledger to the project host's `reconcile()`: the host itself proves or refuses each previous writer; a `recovery-required` run receives one `owner-decision` notification, while settled read runs in other projects release normally. The feed always passes `childIsLive: false` — the ledger proves a child existed, not that it is still alive — so every previous writer is handed to the owner instead of guessed as executable.
 
 ## Testing
 
-`packages/supervisor/supervisor-orchestrator/tests/orchestrator.spec.ts` covers capture, approval batches, stale-revision rejection, single repair with a repeated-signature stop, and revision-guarded follow-ups.
+`packages/supervisor/supervisor-orchestrator/tests/orchestrator.spec.ts` covers capture, approval batches, stale-revision rejection, single repair with a repeated-signature stop, and revision-guarded follow-ups. `tests/orchestrator-reconcile.spec.ts` covers the restart feed: a mounted host receives exactly one `run-linked` recovery observation (`childIsLive: false`), the interrupted task escalates to `NeedsOwnerDecision`, and exactly one owner notification is emitted; without a mounted host the feed is a no-op.
 
 ## Alternatives considered
 
@@ -29,4 +29,5 @@ Startup replays the restored controller ledger into task state and reconciles ta
 
 - The loop is bounded on both edges: only policy-approved low-risk routes can auto-dispatch, and repeated failures notify the owner instead of consuming unlimited attempts.
 - Approval batches are process-local and rebuilt from the restored ledger at startup; failure signatures are not durable, so the attempts bound caps automatic repair after restart. A durable approval projection and child review pipelines remain future work.
+- Restart reconciliation now has a production call site: the orchestrator init feeds ledger run links to the project host, whose refusal (`recovery-required`) becomes one owner notification while remaining projects continue reconciling. The host's writer-gate semantics are unchanged.
 - Host API exposure and bundle composition shipped downstream in `@deepseek-ai/dsh-supervisor-api` and the `@deepseek-ai/dsh-personal-supervisor` bundle; prompts and child output stay out of the controller's published task snapshots.

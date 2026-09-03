@@ -14,11 +14,11 @@ Status: implemented
 
 完成的执行进入 `ReadyForReview`；本服务不会把执行结果提升为 `Accepted`——`Accepted` 只由用户显式的 `review()` 决定发布。失败执行使用确定性签名分类，并且最多按配置进行限定次数的返修。重复签名会发送阻塞通知并停止自动返修。销毁时取消准确的活动句柄并清理进程内控制状态。
 
-启动时把恢复的总控账本重放进任务状态，并将无法继续执行的任务以 `NeedsOwnerDecision` 交还给用户。
+启动时把恢复的总控账本重放进任务状态，并将无法继续执行的任务以 `NeedsOwnerDecision` 交还给用户。重放后，编排器还会把账本中每个持久 `run-linked` 记录馈送给项目宿主的 `reconcile()`：宿主自行证明或拒绝每个先前 writer；`recovery-required` 的 run 得到一条 `owner-decision` 通知，其余项目的已结算读 run 照常释放。馈送始终传入 `childIsLive: false`——账本只证明曾有子会话，不证明它仍存活——因此每个先前 writer 都交还给用户，而不是猜测可继续执行。
 
 ## 测试
 
-`packages/supervisor/supervisor-orchestrator/tests/orchestrator.spec.ts` 覆盖捕获、确认批次、过期 revision 拒绝、一次返修后重复签名停止，以及 revision 保护的 follow-up。
+`packages/supervisor/supervisor-orchestrator/tests/orchestrator.spec.ts` 覆盖捕获、确认批次、过期 revision 拒绝、一次返修后重复签名停止，以及 revision 保护的 follow-up。`tests/orchestrator-reconcile.spec.ts` 覆盖重启馈送：挂载宿主收到准确一个 `run-linked` 恢复观测（`childIsLive: false`），中断任务升级为 `NeedsOwnerDecision`，且恰好发出一条用户通知；未挂载宿主时馈送为无操作。
 
 ## 考虑过的备选
 
@@ -29,4 +29,5 @@ Status: implemented
 
 - 循环在两端都有界：只有策略批准的低风险路由可以自动派发，重复失败通知用户而不是无限消耗次数。
 - 确认批次保存在进程内存中，启动时从恢复的账本重建；失败签名不持久化，因此次数上限在重启后仍然封顶自动返修。持久化确认投影与 child reviewer 流程仍归后续工作。
+- 重启对账现在有了生产调用点：编排器 init 馈送账本 run link 给项目宿主，宿主的拒绝（recovery-required）转化为一条用户通知，剩余项目继续对账。宿主侧的写入闸门语义不变。
 - Host API 与 Bundle 装配已由下游交付：`@deepseek-ai/dsh-supervisor-api` 和 `@deepseek-ai/dsh-personal-supervisor` bundle；提示词与 child 输出不出现在总控发布的任务快照中。

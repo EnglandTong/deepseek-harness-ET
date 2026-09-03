@@ -18,6 +18,7 @@ import {
   supervisorEventFromSessionEvent,
   type SupervisorNotification,
   type SupervisorPolicyApplied,
+  type SupervisorRunLink,
   type SupervisorTaskSnapshot,
 } from '@deepseek-ai/dsh-supervisor'
 import { SupervisorOrchestratorError } from './error.ts'
@@ -98,7 +99,7 @@ export class SupervisorOrchestratorService extends Service {
    * Replay the restored controller ledger into task state, then reconcile
    * every task that cannot resume execution to the owner.
    */
-  protected [Service.init](): void {
+  protected async [Service.init](): Promise<void> {
     const session = this.ctx.supervisorSession.current
     if (session === undefined) return
     const events = session.events.flatMap((event) => {
@@ -139,6 +140,53 @@ export class SupervisorOrchestratorService extends Service {
       if (record.snapshot.status !== 'Captured' && record.snapshot.status !== 'Classified' && record.snapshot.status !== 'Ready'
         && record.snapshot.status !== 'Dispatched' && record.snapshot.status !== 'Running' && record.snapshot.status !== 'NeedsFix') continue
       this.publishTask(record, 'NeedsOwnerDecision', 'Process exit interrupted orchestration; the owner decides to re-capture, follow up, or cancel.')
+    }
+    await this.reconcileDurableRuns(projection)
+  }
+
+  /**
+   * Feed every durable run link to the project host after restart. The host
+   * proves or refuses each previous writer itself; this feed only propagates
+   * the host's admission facts into task state and owner notifications.
+   * @param projection - the replayed controller ledger.
+   */
+  private async reconcileDurableRuns(projection: Awaited<ReturnType<typeof foldSupervisor>>): Promise<void> {
+    // Prefer a direct property read: optional hosts may be attached via
+    // Object.defineProperty in tests, and ctx.get() only resolves Cordis
+    // inject-provided services.
+    const host = (this.ctx as Context & {
+      supervisorProjectHost?: { reconcile(recoveries: readonly { link: SupervisorRunLink; childIsLive: boolean }[]): Promise<unknown> }
+    }).supervisorProjectHost
+    if (host === undefined) return
+    const latest = new Map<string, SupervisorRunLink>()
+    for (const link of projection.runs.values()) latest.set(String(link.runId), link)
+    if (latest.size === 0) return
+    // The controller ledger proves that a child existed, not that it is still
+    // alive; liveness (and the writer-gate decision) stays with the project
+    // host. The false feed releases settled readers and hands every previous
+    // writer to the owner instead of guessing an executable continuation.
+    const recoveries = [...latest.values()].map(link => ({ link, childIsLive: false }))
+    try {
+      const leases = await host.reconcile(recoveries) as readonly { cancel(): Promise<void>; release(): Promise<void> }[]
+      // Recovered leases are returned only for refused live writers that kept
+      // their gate; release them immediately, the tasks are already escalated.
+      for (const lease of leases) await lease.release().catch(() => undefined)
+    } catch (error) {
+      const runId = (error as { runId?: unknown }).runId
+      const link = typeof runId === 'string' ? latest.get(runId) : undefined
+      const record = link === undefined ? undefined : this.tasks.get(String(link.taskId))
+      this.ctx.logger.warn('supervisor-orchestrator: restart reconciliation required for run %s: %s', String(runId), String(error))
+      if (record !== undefined) this.notify(record, 'owner-decision', `Restart left run ${String(runId)} unrecovered; the owner decides to re-capture, follow up, or cancel.`)
+      // Remaining projects keep reconciling: one stuck writer must not block
+      // the other projects' settled reads from being released.
+      const remaining = recoveries.filter(recovery => String(recovery.link.runId) !== String(runId))
+      if (remaining.length === 0) return
+      try {
+        const leases = await host.reconcile(remaining) as readonly { cancel(): Promise<void>; release(): Promise<void> }[]
+        for (const lease of leases) await lease.release().catch(() => undefined)
+      } catch (nextError) {
+        this.ctx.logger.error('supervisor-orchestrator: restart reconciliation stopped on a second recovery-required run: %s', String(nextError))
+      }
     }
   }
 
