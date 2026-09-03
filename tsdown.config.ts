@@ -16,7 +16,20 @@ function isBuildFaceClient(value: unknown): boolean {
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
   return {
-    workspace: ['vendor/*', 'packages/*/*', 'apps/cli'],
+    // packages/desktop is a single-level Electron app (not a Cordis package).
+    // Its children (src/, config/, …) still match packages/*/* as directories;
+    // exclude them so tsdown does not walk up to @deepseek-ai/dsh-desktop and
+    // try to emit lib/types entries that package does not have.
+    workspace: {
+      include: ['vendor/*', 'packages/*/*', 'apps/cli'],
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/test?(s)/**',
+        '**/t?(e)mp/**',
+        'packages/desktop/**',
+      ],
+    },
     entry: client ? '' : ['lib/types/{index,invariant,startup}.js'],
     outDir: 'lib',
     format: ['esm'],
