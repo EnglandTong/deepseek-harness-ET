@@ -150,6 +150,11 @@ export default defineConfig({
             ...windowsUnsupportedTests,
             ...processBoundTests,
             ...coverageExemptExcludes,
+            // Junction-linked external repo (governance-multi-agent-harness):
+            // vite realpaths the junction outside this root, so its files need
+            // the preserveSymlinks lane below instead of this project.
+            'packages/skill/agent-governance/tests/**',
+            'packages/executor/supervisor-executor-governance/tests/**',
           ],
         },
       },
@@ -164,6 +169,25 @@ export default defineConfig({
           exclude: [
             ...windowsUnsupportedTests,
             ...coverageExemptExcludes,
+          ],
+        },
+      },
+      // Externally junction-linked packages keep their file ids on the junction
+      // path (inside this root) so tsconfig discovery, its references chain,
+      // and the tsconfig paths facade all resolve within the workspace. Only
+      // these suites run with symlink preservation; every other suite keeps
+      // default realpath resolution for module-singleton safety.
+      {
+        plugins: [pathsPlugin(), standardDecoratorPlugin()],
+        resolve: { preserveSymlinks: true },
+        test: {
+          name: 'linked-packages',
+          execArgv: vitestExecArgv,
+          pool: 'forks',
+          setupFiles: ['./scripts/test-invariants.ts'],
+          include: [
+            'packages/skill/agent-governance/tests/**/*.spec.ts',
+            'packages/executor/supervisor-executor-governance/tests/**/*.spec.ts',
           ],
         },
       },
