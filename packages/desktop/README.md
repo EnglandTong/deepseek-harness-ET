@@ -1,4 +1,4 @@
-# DSH Desktop (reference host)
+# DSH Desktop (`@deepseek-ai/dsh-desktop`, reference host)
 
 A minimal Electron desktop that talks to the DeepSeek Harness (DSH) runtime
 over its internal JSON-RPC 2.0 protocol. It is the reference host for the
@@ -17,12 +17,12 @@ can stay strict.
 
 Two `pnpm install` steps: once at the repo root (installs `tsx`, which
 this shell uses to run the runtime's `.ts` bins), then once inside
-`examples/desktop/` for the shell's own deps.
+`packages/desktop/` for the shell's own deps.
 
 ```sh
 # from the repo root of your deepseek-harness clone
 pnpm install
-cd examples/desktop
+cd packages/desktop
 pnpm install
 pnpm start
 ```
@@ -38,13 +38,11 @@ Prereqs: node 22.22+ / pnpm 11.7+, plus the DSH runtime SDK on disk.
 The shell auto-detects the SDK in two shapes:
 
 - **In-repo (default when you clone deepseek-harness):** the shell
-  sits at `examples/desktop/` and finds the runtime by walking up to
+  sits at `packages/desktop/` and finds the runtime by walking up to
   the repo root. Nothing to configure.
 - **Sibling checkout:** if you've cloned this shell into its own
   directory next to a `deepseek-harness-dev/` checkout (the original
-  dev-workflow layout), the shell falls back to that sibling. Prefers
-  the `.worktrees/integration/` worktree when materialized — that's
-  where `daemon-demo` lives until it lands on master.
+  dev-workflow layout), the shell falls back to that sibling.
 
 Set `DSH_DEV_ROOT=…` to force any custom layout.
 
@@ -64,20 +62,17 @@ model on the first prompt, not an echo bot. It needs
 If no key is present when you launch, the shell doesn't wall you off
 with a red banner — it renders a runtime card titled
 **"DEEPSEEK_API_KEY needed for real-model profile"** with hint text
-that spells out both options ("(1) set DEEPSEEK_API_KEY in .env or
-your shell (see README Quick Start), or (2) try the keyless echo demo
-to explore the UI first") and a **Switch to keyless demo
-(stdio-echo)** button that one-click drops you into the echo profile
-so you can walk every tab without a key. Any profile you switch to
-persists to `~/.dsh-desktop/config.json` and comes back on next boot.
+that spells out the supported locations (`.env` at the DSH runtime root
+or your shell — see README Quick Start). No keyless demo exists on the
+`sdk` runtime, so the card no longer offers a one-click profile
+switch (the retired echo profile is disabled).
 
 The model dropdown filters itself to models the current profile can
-actually reach, so if you switch to an echo profile you'll only see
-`mock-echo`, and switching back to `stdio-deepseek` restores
-`deepseek-v4-flash` / `deepseek-v4-pro`. See the **Profiles** table
-below for the full matrix; the "What's real vs demo" section right
-after that spells out which surfaces are live wire vs. fixture on
-each profile.
+actually reach: `deepseek-v4-flash` / `deepseek-v4-pro` (plus their
+`[1m]` long-context variants) on `stdio-deepseek`. See the
+**Profiles** table below for the full matrix; the "What's real vs
+demo" section right after that spells out which surfaces are live
+wire vs. fixture on each profile.
 
 ## Windows double-click packaging
 
@@ -93,24 +88,25 @@ shell with [electron-builder](https://www.electron-builder.com/) into
 Both open like any Windows app — no terminal, no `pnpm start`.
 
 **The real-model profiles are standalone.** The installer carries the
-win32 single-file runtime (`dsh-jsonrpc-agent-pkg-win32-x64.exe`, built by
+win32 single-file runtime (`deepseek-harness-sdk-runtime-win-x64.exe`, built by
 `scripts/build-exe-for-python-sdk.ts --build-closure --targets
 node24-win32-x64` and staged by `pnpm sync-runtime`) as an extraResource:
 its pkg VFS holds the whole plugin closure, so `stdio-deepseek` and
-`stdio-vibe-deepseek` spawn the exe directly — no deepseek-harness
-checkout, no tsx, no system Node on the machine. Only `DEEPSEEK_API_KEY`
-is required (shell environment; `DSH_DESKTOP_WORKSPACE` optionally picks
-the workspace the model works in).
+`stdio-vibe-deepseek` spawn the exe directly with `--profile sdk` —
+no deepseek-harness checkout, no tsx, no system Node on the machine.
+Only `DEEPSEEK_API_KEY` is required (shell environment;
+`DSH_DESKTOP_WORKSPACE` optionally picks the workspace the model works
+in).
 
-**The keyless echo profiles still need a checkout**: their mock adapter is
+**The keyless echo profile needs a checkout**: its mock adapter is
 a shell-owned relative plugin the exe's closed VFS cannot resolve, so
 `stdio-echo` keeps resolving the runtime from a deepseek-harness checkout.
 Checkout resolution order: `DSH_DEV_ROOT`, the `harnessDevRoot` field of
 `~/.dsh-desktop/config.json`, a walk-up from the executable (or portable
 extraction) directory, then `~/deepseek-harness` and `~/deepseek-harness-dev`;
-every candidate must hold `packages/examples/jsonrpc-demo/src/bin.ts`. When
+every candidate must hold `apps/cli/src/bin.ts`. When
 a checkout is absent the packaged app still boots — the missing-checkout
-state only affects the echo profiles and the Plugins tab's workspace scan.
+state only affects the echo profile and the Plugins tab's workspace scan.
 The checkout runtime spawns under system Node (≥ 22.19; override with
 `DSH_RUNTIME_NODE`) — Electron's embedded Node is too old for the current
 runtime.
@@ -175,7 +171,7 @@ trace drawer for reading a single turn in place.
 Sessions are not a flat list — DSH records lineage in the session header
 (`parentSession`, `seedLength`) and emits `subagent.started` /
 `subagent.finished` notifications when a child agent runs. The **Tree**
-tab folds the flat `session/list` into a forest so you can see the
+tab folds the flat session list into a forest so you can see the
 whole fork ancestry at a glance. Orphans (children whose parent is
 missing from the list) surface with an `(orphan)` badge rather than
 being silently promoted to roots. Inside chat, every assistant bubble
@@ -203,7 +199,7 @@ navigates to the Chat pane and opens that session's **Trace** tab (the
 Tree / Timeline / Graph tri-view — see Feature highlights), so the table
 stays a pure scanning surface and the per-session drill has one home. Meant
 for the "which of my 200 sessions actually cost me tokens this afternoon"
-question, backed by the same `session/list` projection the Chat sidebar
+question, backed by the same session projection the Chat sidebar
 reads.
 
 ### Iteration
@@ -211,21 +207,22 @@ reads.
 #### Playground **(demo)**
 
 An isolated scratch runtime that lives right next to the Plugins pane.
-Enter via the **Playground** button; a fresh daemon boots against a
+Enter via the **Playground** button; a fresh runtime boots against a
 throwaway leaf so you can try a plugin lineup without disturbing your
 main session. `Discard` throws the whole thing away; `Apply` promotes
 the tried lineup back into your user overlay. The compare drawer picks
 a live session, copies its first user message into the playground
 input, and paints the live session's events alongside the playground
-stream — same prompt, two overlays, side by side. The scratch boot is
-real; the standalone Playground page hasn't fully landed, so the nav
-button currently shims to Plugins.
+stream — same prompt, two overlays, side by side. **Currently
+unavailable**: the scratch boot relied on the retired daemon runtime;
+re-anchoring it to the `sdk` profile is tracked as follow-up work, so
+the nav button reports the gap instead of starting a doomed spawn.
 
 #### Hub **(demo)**
 
 The plugin discovery surface — the "shop" side of the same list the
 Plugins page edits. Plugin listings themselves are real wire
-(`daemon/plugins/list`), but the surrounding catalogue metadata
+(plugins/list), but the surrounding catalogue metadata
 (categories, descriptions, ratings, install counts) is fixture pending
 G1 / G11 / G12. A page-footer SDK legend spells out which chip on a
 card is coming from where.
@@ -268,12 +265,12 @@ that extends its own runtime in a `node:vm` sandbox — two clicks from
 
 #### Runtimes
 
-Local runtime profiles and their isolated daemons in one place — one
-row per profile with a status dot, PID, socket path, and the compose
-recipe (which cordis leaves it's built from). Real wire on the plugin
-list (`daemon/plugins/list`); the compose recipe view is fixture-tier
+Local runtime profiles and their isolated runtimes in one place — one
+row per profile with a status dot, PID, and the compose recipe (which
+cordis leaves it's built from). Real wire on the plugin
+list; the compose recipe view is fixture-tier
 with a visible `composed locally · gap G8` chip. Meant for the "which
-daemon am I actually talking to right now" question when you have
+runtime am I actually talking to right now" question when you have
 several profiles alive.
 
 #### Missions
@@ -291,7 +288,7 @@ of a running session carry a dashed flow animation), and **Board**
 `todo/write`, three columns, each card badges back to its originating
 session). Every card click jumps back to Chat for that session. The
 header button `mock: mission demo` injects a synthetic 3-level 8-node
-scenario so every subview is demoable without a live daemon; the
+scenario so every subview is demoable without a live runtime; the
 default empty-state preview shows three ghost cards labelled `preview`
 until a real `todo/write` replaces them.
 
@@ -321,7 +318,7 @@ badge and a banner explaining the fix.
 #### Settings
 
 Profile switch, model dropdown, `DEEPSEEK_API_KEY` presence check, and
-the local pricing table (pricing lives in the shell, not the daemon,
+the local pricing table (pricing lives in the shell, not the runtime,
 so tokens-to-cost math is auditable client-side). Also where you
 reset onboarding, override `DSH_DEV_ROOT` / `DSH_ARTIFACT_DIR`, and
 inspect which plugins the current profile composes. Every knob here
@@ -459,19 +456,20 @@ becomes a visualiser of the runtime's actual state.
 ## Profiles
 
 The profile dropdown in the sidebar swaps the whole runtime. Three you'll
-actually use, plus two vibe variants:
+actually use, plus two vibe variants (the two daemon profiles are retired —
+the daemon/socket runtime was removed upstream in alpha.4):
 
 | Profile | What it's for | Needs |
 | --- | --- | --- |
-| **stdio-echo** | Keyless demo, works on master. Direct-spawns the `jsonrpc-demo` bin (present on `deepseek-harness` master) over stdio. Runtime state (plugin list, sandbox mode, compact) is unavailable because there's no daemon to ask, but conversation, tool cards, forks, and devtools all work. This is the one-click fallback offered by the missing-key card. | none |
-| **stdio-deepseek** | Real DeepSeek adapter, real tool calls, real approvals. **Default on first launch** (2026-07-18) — new downloaders should see a real reply, not the echo bot. Use this for actual work, and to demo any live-tool behaviour. | `DEEPSEEK_API_KEY` in the repo's `.env` or your shell |
-| **daemon-echo** | Full-feature demo, keyless. Boots the real daemon over a Unix socket; the model is a mock that echoes your input back. Every renderer capability (daemon plugin list, sandbox toggles, live compact) is demoable. **Not yet available on master** — the `daemon-demo` bin lives in the `.worktrees/integration` worktree of the dev clone until it lands upstream; wait for that or use `DSH_DEV_ROOT` to point at a checkout that has it. | `daemon-demo` bin (integration worktree only) |
-| **daemon-vibe-echo** | daemon-echo + the vibe leaf loaded. The Vibe entry point is gated (mock-echo can't actually compose plugins) but the leaf is there for UI walkthroughs. **Not yet available on master** — same reason as daemon-echo. | `daemon-demo` bin (integration worktree only) |
-| **stdio-vibe-deepseek** | Real Vibe. `cordis_mount` etc. run under the DeepSeek adapter and the model can extend its own runtime. | `DEEPSEEK_API_KEY` |
+| **stdio-deepseek** | Real DeepSeek adapter via the runtime's `sdk` profile (checkout: `dsh --profile sdk`; packaged: the bundled runtime exe with `--profile sdk`). Real tool calls, real approvals. **Default on first launch** — new downloaders should see a real reply, not the echo bot. Use this for actual work, and to demo any live-tool behaviour. | `DEEPSEEK_API_KEY` in the repo's `.env` or your shell |
+| **stdio-vibe-deepseek** | Real Vibe. `cordis_mount` etc. run under the DeepSeek adapter and the model can extend its own runtime. Same `sdk` profile anchoring as stdio-deepseek. | `DEEPSEEK_API_KEY` |
+| **stdio-echo** | Keyless demo over stdio against a checkout runtime. Runtime state (plugin list, sandbox mode, compact) is unavailable on stdio, but conversation, tool cards, forks, and devtools all work. This is the one-click fallback offered by the missing-key card. | a deepseek-harness checkout |
+| **daemon-echo** | **Retired upstream (alpha.4)** — shown greyed out with the reason. The daemon/socket runtime (`daemon-demo`) no longer exists; kept in the dropdown only so persisted selections don't break. | none (disabled) |
+| **daemon-vibe-echo** | **Retired upstream (alpha.4)** — same as daemon-echo. | none (disabled) |
 
 The model dropdown right below the profile dropdown filters itself to
-models the current profile can actually reach: `mock-echo` on the echo
-profiles, `deepseek-v4-flash` / `deepseek-v4-pro` (plus their `[1m]`
+models the current profile can actually reach: `mock-echo` on
+`stdio-echo`, `deepseek-v4-flash` / `deepseek-v4-pro` (plus their `[1m]`
 long-context variants) on `stdio-deepseek`. Switching profile also
 resets the model to the profile's default, so you can't accidentally
 end up on a model your current runtime has no adapter for.
@@ -480,7 +478,7 @@ end up on a model your current runtime has no adapter for.
 
 Every surface in the shell is either driven by a live JSON-RPC method
 or filled with an on-disk fixture so the whole capability is walkable
-without a live daemon. Both are useful for different reasons — real
+without a live runtime. Both are useful for different reasons — real
 surfaces show you what a plugin author can actually hook into today,
 fixtures show you the *shape* the runtime will emit once the wire
 lands. The two are visually distinguishable so you can tell at a
@@ -498,25 +496,25 @@ glance:
   missing wire.
 
 The current split, on the default `stdio-deepseek` profile (the same
-9-real / 5-fixture set applies to `daemon-echo` — the model
+9-real / 5-fixture set applies to `stdio-echo` — the model
 underneath swaps, the surfaces don't):
 
 **Real wire (9 surfaces):**
 
-- Chat — `session/prompt` + `session/cancel` + streaming
-  `session.event` (assistant chunks, reasoning deltas, tool calls,
-  context injections all reach real events).
-- Session Tree — real `session/list` folded into a forest via
-  `parentSession` / `seedLength` in each `SessionListEntry.header`.
+- Chat — `session/prompt` + streaming `session.event` (assistant
+  chunks, reasoning deltas, tool calls, context injections all reach
+  real events).
+- Session Tree — the session forest folds from the live session
+  projection via `parentSession` / `seedLength` in each session header.
 - Context page — real `session.event` ledger (inject / recall /
   compact events all wire); per-knob chips call out which G<n>
   writeback is still pending.
-- Tracing page — `session/list` projection (eight-column table over
-  real sessions).
-- Plugins → Installed / Browse — `daemon/plugins/list` and
+- Tracing page — the session projection as an eight-column table over
+  real sessions.
+- Plugins → Installed / Browse — plugin list and
   `plugins:add` are real wire; the curated Browse index is a fixture
   clearly labelled `Curated demo index`.
-- Runtimes — `daemon/plugins/list` is real; the compose recipe view
+- Runtimes — the plugin list is real; the compose recipe view
   is fixture-tier with a `composed locally · gap G8` chip.
 - PRs — real `gh pr list` in the profile's `cwd`; the fallback demo
   dataset is only used when `gh` is missing / signed out, and shows a
@@ -525,13 +523,13 @@ underneath swaps, the surfaces don't):
   live.
 - Settings — profile switch, `DEEPSEEK_API_KEY` presence check, and
   the local pricing table are all real (pricing lives in the shell,
-  not the daemon).
+  not the runtime).
 
 **Fixture-only (5 surfaces):**
 
-- **Playground** — `demo` chip on the nav item. The scratch runtime
-  boot is real, but the entry point currently shims to the Plugins
-  tab; the standalone Playground page hasn't landed.
+- **Playground** — `demo` chip on the nav item. Currently
+  unavailable: the scratch boot relied on the retired daemon runtime;
+  re-anchoring it to the `sdk` profile is follow-up work.
 - **Hub** — `demo` chip on the nav item + page-footer SDK legend.
   Plugin listings are real wire; the surrounding catalogue metadata
   (categories, descriptions, ratings) is fixture pending G1 / G11 /
@@ -558,24 +556,25 @@ in the target profile.
 
 - **stdio profiles don't have runtime-state features.** No plugin
   list, no live sandbox-mode badge, no `session/compact` button — those
-  read/write daemon state that only the daemon profiles expose.
+  read/write state that only the daemon profiles exposed, and the
+  daemon surface was retired upstream.
 - **`session/compact` is proposed, not shipped.** The **Compact now**
-  button works if the daemon has a `compact-basic` (or equivalent) leaf
+  button works if the runtime has a `compact-basic` (or equivalent) leaf
   mounted; on MethodNotFound the button greys out with an explanatory
   tooltip. No mock compaction is fabricated.
 - **`session/fork` is still landing.** The **fork from here** button
   and the tree smoke scenario fall back to a synthetic `session/new`
   and badge the child `(mock)` so callers know it's an empty child, not
   seeded.
-- **Old sessions can't be resumed after `kill -9`.** The daemon's SDK
+- **Old sessions can't be resumed after `kill -9`.** The runtime's SDK
   server owns a per-connection sessionId map. Respawn works and new
   sessions work; resuming a session that predates the crash does not.
-- **Plugin toggle is full-daemon-respawn.** The **Apply + restart**
-  button tears the daemon down and brings it back up. Per-plugin
-  dispose + re-mount is on the runtime side's list (`daemon/plugins/toggle`,
-  `daemon/plugins/reload`).
+- **Plugin toggle is full-respawn.** The **Apply + restart**
+  button tears the runtime down and brings it back up. Per-plugin
+  dispose + re-mount is on the runtime side's list
+  (`plugins/toggle`, `plugins/reload`).
 - **Mission Control has no persistence.** A page reload wipes the
-  aggregate and reseeds from the next `session/list` refresh — the
+  aggregate and reseeds from the next session-list refresh — the
   view is a live overlay, not a store.
 - **Artifact preview: inline peek in-stream, full view in the browser.**
   Each artifact card can expand a low-key inline preview — Markdown
@@ -588,8 +587,8 @@ in the target profile.
   are collapsed by default and lazy (content builds on first expand);
   when the artifact server isn't up the `.html` expand falls back to the
   open-in-browser action instead of a broken frame.
-- **Growth reads jsonl + `session/list`.** A follow-up will migrate to
-  the `session/list` + `session/events` aggregation so events that
+- **Growth reads the session jsonl on disk.** A follow-up will migrate
+  to a session-list + session-events aggregation so events that
   never touch the overlay (pure chat activity) also show up.
 - **Widget cards are demoable via the header mocks.** No live tool on
   any shipped profile emits `card: 'widget'` yet; the three
@@ -606,20 +605,18 @@ the demo, you're done above.
 ### Architecture
 
 Topology mirrors ChatGPT.app: an Electron main process spawns the DSH
-**daemon** (long-lived host process) and connects a Unix-domain socket
-for JSON-RPC frames; the renderer only renders. A `stdio-*` fallback
-is kept for airgapped smoke tests and for demoing without a daemon
-build.
+runtime (`dsh --profile sdk` — checkout via tsx, or the bundled
+single-file exe in the packaged app) and connects its stdio for
+JSON-RPC frames; the renderer only renders.
 
 ```
-+-----------------+       IPC        +------------------+    unix-socket JSON-RPC v2    +-----------------+
-| renderer        | <--------------> | Electron main    | <--------------------------->  | DSH daemon      |
-| (vanilla JS)    |    preload API   | (RuntimeSuper +  |   newline-delimited frames    | (daemon-demo)   |
-+-----------------+                  |  DaemonSuper —   |                                +-----------------+
-                                     |  respawn/probe)  |
-                                     +------------------+
-                                                Fallback (stdio-echo / stdio-deepseek):
-                                                    direct-spawn jsonrpc-demo bin, stdio frames
++-----------------+       IPC        +------------------+    stdio JSON-RPC v2    +-----------------+
+| renderer        | <--------------> | Electron main    | <----------------------> | DSH runtime     |
+| (vanilla JS)    |    preload API   | (runtime super-  |  newline-delimited frames | (dsh --profile  |
++-----------------+                  |  visor: respawn) |                           |  sdk)           |
+                                     +------------------+                           +-----------------+
+                                                     checkout spawn: tsx + apps/cli/src/bin.ts
+                                                     packaged spawn: deepseek-harness-sdk-runtime-win-x64.exe
 ```
 
 ### Structure
@@ -628,10 +625,9 @@ build.
 src/
   main/
     jsonrpc-client.js   pure JSON-RPC 2.0 framing (unit-tested)
-    transport.js        StdioTransport + SocketTransport
+    transport.js        StdioTransport
     runtime.js          supervisor: transport + client + crash re-spawn + initialize
-    daemon.js           probe+spawn+respawn for the daemon profile
-    profiles.js         which cordis.yml + model to launch
+    profiles.js         profile → spawn args (leaf config dir, model, bundled exe)
     gh-prs.js           gh CLI wrapper (pure)
     artifact-server.js  127.0.0.1 static server + SSE live-reload
     main.js             BrowserWindow, IPC surface
@@ -640,54 +636,55 @@ src/
     index.html          two-pane layout
     style.css           vanilla, no framework
     renderer.js         session-event → DOM dispatch
-    (~30 IIFE modules — mission, plugins, growth, playground, quick-chat, devtools, …)
+    (~30 IIFE modules — mission, plugins, growth, quick-chat, devtools, …)
 test/
-  *.test.js             439 unit tests (node --test, no Electron)
-  smoke-runtime.js      headless smoke scenarios (stdio / daemon / kill / tree)
+  *.test.js             unit tests (node --test, no Electron)
+  smoke-runtime.js      headless smoke scenarios (stdio / kill / tree)
 ```
 
 ### Protocol surface used
 
-From `packages/ui/jsonrpc/src/protocol.ts` (v2):
+The `sdk` profile's wire surface is `packages/sdk/protocol/src/types.ts`
+(`@deepseek-ai/dsh-sdk-protocol/types`; `serverInfo.name` is
+`deepseek-harness-sdk-runtime`):
 
-- `initialize({ cwd, model, protocolVersion: 2, capabilities: {interruptions:true} })`
-  → `{ serverInfo, protocolVersion, capabilities }`
-- `session/new({ sessionId })` → `{ sessionId }`
-- `session/prompt({ sessionId, contentBlocks })` → `{ accepted: true }`
-- `session/cancel({ sessionId, reason })` → `{ cancelled }`
-- `session/list({})` → `{ sessions: [{ sessionId, header, live, persisted }] }`
-- `session/events({ sessionId })` → metadata list;
-  `session/events({ sessionId, seq, before, after })` → full-event window
+- `initialize({ cwd, provider, model })` → `{ serverInfo: { name, version } }`.
+  `provider` selects the adapter the server validates at initialize; the
+  server mounts its DeepSeek fallback only for `deepseek-official` and
+  rejects unknown providers, so each profile carries its own.
+- `session/prompt({ sessionId, contentBlocks })` → `{ messageId }`
+  (durable enqueue receipt; an unknown id lazily creates the session).
 - `shutdown` → `{}`
 
-Server→client requests:
-- `session/interrupt({ sessionId, interruptId, payload | spec })` →
-  `{ outcome: 'accepted', payload } | { outcome: 'rejected' } | { outcome: 'cancelled' }`
+Server→client notifications: `session.event` (full session-log envelope,
+streamed as recorded), `session.status` (idle/running),
+`subagent.started`, `subagent.finished`.
 
-Notifications: `session.event`, `session.finished`, `subagent.started`,
-`subagent.finished`.
+The shell additionally sends methods the current SDK server does not
+implement — `session/list`, `session/new`, `session/resume`,
+`session/events`, `session/cancel`, `session/fork`, `session/compact`,
+`session/set_config`, `plugins/list` — and every caller degrades on
+MethodNotFound (sidebar empties, fork falls back to a synthetic
+`session/new`, the Compact button greys out). Closing that gap is the
+main protocol follow-up tracked below.
 
-Daemon-only: `daemon/ping` → `{ name, version, pid, startedAt }`.
-
-Proposed (not yet in shipped protocol; graceful fallback in the shell):
-`session/fork`, `session/compact`, `daemon/plugins/list`,
-`daemon/plugins/toggle`, `daemon/plugins/reload`,
-`daemon/persona/get`.
+Retired daemon-only (the daemon surface was removed upstream in alpha.4):
+`daemon/ping` → `{ name, version, pid, startedAt }`.
 
 ### Tests
 
 ```sh
-pnpm test                              # 439 unit tests (node --test, no Electron)
+pnpm test                              # unit tests (node --test, no Electron)
 node test/smoke-runtime.js stdio       # stdio-echo end-to-end
-node test/smoke-runtime.js daemon      # daemon-echo + session/list + prompt
-node test/smoke-runtime.js kill        # SIGKILL daemon → auto-respawn + reconnect
+node test/smoke-runtime.js kill        # SIGKILL runtime → auto-respawn + reconnect
 node test/smoke-runtime.js tree        # session tree + fork lineage (mock fallback)
-node test/smoke-runtime.js all         # everything (~90s)
+node test/smoke-runtime.js all         # everything
 ```
 
 ### Manual verification recipes
 
-**Kill-recovery.** In another shell, `pkill -9 -f daemon-demo/src/bin.ts`.
+**Kill-recovery.** In another shell, kill the spawned runtime process
+(Node/tsx on checkout spawns, the exe in packaged builds).
 Status bar flips `running → crashed → respawning → running` on schedule
 `[0,300,1000,2500,5000]ms`. Send a new prompt — new session works;
 old sessions can't be resumed (see Known Limitations).
@@ -695,7 +692,7 @@ old sessions can't be resumed (see Known Limitations).
 **Approval card.** Header debug button `mock-approval` renders an inline
 card wired to the real interrupt-resolution path. In a coding-agent
 profile with a real bash tool call, a live `session/interrupt` request
-from the daemon hits the same handler and gets an `accepted` /
+from the runtime hits the same handler and gets an `accepted` /
 `rejected` / `cancelled` response over the JSON-RPC id.
 
 **Plugins toggle.** `pnpm start`, click **Plugins**, uncheck `bash`,
@@ -713,15 +710,20 @@ plugin and watch a `cordis_mount` tool block appear.
 
 ### Wire needs owed by the protocol team
 
-- `session/fork` (see Known Limitations).
-- `session/compact` (see Known Limitations).
-- `daemon/plugins/list` / `daemon/plugins/toggle` /
-  `daemon/plugins/reload` (per-plugin dispose + re-mount).
-- `daemon/persona/get` + role templates on the daemon side; today the
+The shell drives surfaces the current `sdk` wire does not expose yet;
+each degrades gracefully today (see Protocol surface used):
+
+- `session/list` / `session/events` (sidebar, Log, Trace, Growth reads).
+- `session/new` / `session/resume` (session lifecycle).
+- `session/cancel` (mid-turn cancel button).
+- `session/fork` (fork from here + tree lineage).
+- `session/compact` (Compact now button).
+- `session/set_config` (sandbox / effort toggles).
+- `plugins/list` / `plugins/toggle` /
+  `plugins/reload` (per-plugin dispose + re-mount).
+- `persona/get` + role templates on the runtime side; today the
   role choice from onboarding lives in `~/.dsh-desktop/config.json` on
   the shell.
-- `SessionListEntry.header.seedLength` populated end to end so fork
-  markers can anchor at the exact seq rather than the current tail.
 
 ### Adaptive layout, widget channel, artifact preview
 
@@ -737,8 +739,9 @@ under `docs/`:
   `docs/widget-channel-design.md` for the wire shape, plus
   `src/renderer/widgets.js` and the three header mocks.
 - **Artifact preview** — `127.0.0.1` static server + SSE live-reload
-  that watches `~/Library/Application Support/dsh-desktop-demo/.artifacts/`
-  (override with `DSH_ARTIFACT_DIR=…`). Cards carry an inline peek —
+  that watches the shell's user-data `.artifacts/` directory
+  (`%APPDATA%/dsh-desktop/` on Windows; override with
+  `DSH_ARTIFACT_DIR=…`). Cards carry an inline peek —
   `.md` rendered read-only by `src/renderer/md-mini.js`, `.html` framed
   in a `sandbox="allow-scripts"` iframe — while the full view still opens
   in your default browser (no embedded webview for full pages).

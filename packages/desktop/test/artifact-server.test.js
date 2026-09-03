@@ -77,9 +77,11 @@ test('pathToArtifactId returns null for paths outside the artifact dir', () => {
 })
 
 test('artifactIdToPath rejects traversal / absolute ids', () => {
-  const dir = '/workspace/.artifacts'
-  assert.equal(artifactIdToPath('report.html', dir), '/workspace/.artifacts/report.html')
-  assert.equal(artifactIdToPath('sub/dir/a.html', dir), '/workspace/.artifacts/sub/dir/a.html')
+  // Resolve the fixture dir so the expected join is platform-correct
+  // (backslashes on win32, forward slashes on POSIX).
+  const dir = path.resolve('/workspace/.artifacts')
+  assert.equal(artifactIdToPath('report.html', dir), path.join(dir, 'report.html'))
+  assert.equal(artifactIdToPath('sub/dir/a.html', dir), path.join(dir, 'sub', 'dir', 'a.html'))
   assert.equal(artifactIdToPath('../../etc/passwd', dir), null)
   assert.equal(artifactIdToPath('/etc/passwd', dir), null)
   assert.equal(artifactIdToPath('', dir), null)
@@ -270,8 +272,9 @@ test('close() releases the port', async () => {
 })
 
 test('extractPathCandidates pulls file paths from tool/result shapes', () => {
-  const { _internal } = require('../src/main/artifact-ipc.js')
-  const { extractPathCandidates } = _internal
+  // The pure extractors live in artifact-extract.js (no Electron import), so
+  // node --test can require them directly.
+  const { extractPathCandidates } = require('../src/main/artifact-extract.js')
   assert.deepEqual(extractPathCandidates({ filePath: '/w/.artifacts/a.html' }), ['/w/.artifacts/a.html'])
   assert.deepEqual(extractPathCandidates({ meta: { path: '/w/.artifacts/b.svg' } }), ['/w/.artifacts/b.svg'])
   assert.deepEqual(

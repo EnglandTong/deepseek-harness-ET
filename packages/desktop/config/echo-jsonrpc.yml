@@ -1,10 +1,12 @@
-# Keyless echo profile for the desktop demo, booted by the jsonrpc-demo bin
-# on stdio. The mock adapter comes from this shell (plugins/mock-llm.mjs);
-# no package on the runtime checkout registers `mock-echo`.
+# LEGACY leaf (alpha.4 anchoring): the sdk profile composes from
+# $DSH_HOME/profiles/sdk bundle layers and takes no leaf argv, so the runtime
+# never loads this file directly. It remains as the Plugins tab's legacy leaf
+# view for the stdio-echo profile, which is itself disabled until a mock
+# overlay for the sdk profile exists.
 #
-# Composition mirrors examples/jsonrpc-agent/cordis.yml (the maintained
-# SDK-runtime leaf) minus the DeepSeek adapter, with the mock adapter swapped
-# in. The JSON-RPC client (the desktop shell) announces
+# Keyless echo profile for the desktop shell on stdio. The mock adapter comes
+# from this shell (plugins/mock-llm.mjs); no package on the runtime checkout
+# registers `mock-echo`. The JSON-RPC client (the desktop shell) announces
 # capabilities.interruptions=true; session/interrupt degrades gracefully on
 # this composition (no approval plugin mounted) — the echo demo is for UI
 # walkthroughs, not approval flows.

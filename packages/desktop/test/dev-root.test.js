@@ -9,10 +9,11 @@
 //   3. walk-up from the portable origin dir, then the exe dir.
 //   4. `~/deepseek-harness`, then `~/deepseek-harness-dev`.
 //
-// Every candidate must hold `packages/examples/jsonrpc-demo/src/bin.ts`,
-// so stale config values and unrelated directories are skipped. Fixtures
-// resolve every root through `path.resolve` before joining the marker so
-// the ordering is locked identically on Windows and POSIX separators.
+// Every candidate must hold `apps/cli/src/bin.ts` (the dsh CLI entry the
+// alpha.4 source launch spawns), so stale config values and unrelated
+// directories are skipped. Fixtures resolve every root through `path.resolve`
+// before joining the marker so the ordering is locked identically on Windows
+// and POSIX separators.
 
 'use strict'
 
@@ -145,7 +146,7 @@ test('no candidates: returns null so profiles.js preflight owns the failure', ()
 test('walkUpToMarker: walks up from nested dirs and stops at the filesystem root', () => {
   const root = path.resolve('/repo')
   const fs = mockFsWith([MARKER_AT(root)])
-  assert.equal(walkUpToMarker(path.join(root, 'examples', 'desktop', 'src', 'main'), fs), root)
+  assert.equal(walkUpToMarker(path.join(root, 'packages', 'desktop', 'src', 'main'), fs), root)
   const none = mockFsWith([])
   assert.equal(walkUpToMarker(root, none), null, 'root hit must not loop forever')
 })

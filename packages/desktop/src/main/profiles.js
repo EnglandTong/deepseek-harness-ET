@@ -44,12 +44,11 @@ const os = require('node:os')
 function resolveHarnessDev(startDir, env, fsAccess) {
   const explicit = env.DSH_DEV_ROOT
   if (explicit) return path.resolve(explicit)
-  // Candidate 2 — walk up (up to 6 levels) looking for the jsonrpc-demo
-  // bin. Cap the walk so a shell launched from an unrelated deep
-  // directory doesn't scan the filesystem root. The marker was chosen
-  // because it exists on every branch of deepseek-harness that this
-  // shell can boot against.
-  const marker = path.join('packages', 'examples', 'jsonrpc-demo', 'src', 'bin.ts')
+  // Candidate 2 — walk up (up to 6 levels) looking for the dsh CLI entry
+  // (apps/cli/src/bin.ts). Cap the walk so a shell launched from an
+  // unrelated deep directory doesn't scan the filesystem root. The marker
+  // is the alpha.4 source-launch entry that every checkout carries.
+  const marker = path.join('apps', 'cli', 'src', 'bin.ts')
   let dir = startDir
   for (let i = 0; i < 6; i += 1) {
     try {
@@ -64,9 +63,10 @@ function resolveHarnessDev(startDir, env, fsAccess) {
   const base = path.resolve(startDir, '..', '..', '..', 'deepseek-harness-dev')
   const integration = path.join(base, '.worktrees', 'integration')
   try {
-    // Prefer the integration worktree only if daemon-demo is materialized there.
-    const daemonDir = path.join(integration, 'packages', 'examples', 'daemon-demo')
-    fsAccess.accessSync(daemonDir)
+    // Prefer the integration worktree when its dsh CLI entry is the shape
+    // the source launch loads. The old daemon-demo worktree was retired.
+    const cliEntry = path.join(integration, 'apps', 'cli', 'src', 'bin.ts')
+    fsAccess.accessSync(cliEntry)
     return integration
   } catch (_) {
     return base
@@ -75,15 +75,18 @@ function resolveHarnessDev(startDir, env, fsAccess) {
 
 const HARNESS_DEV = resolveHarnessDev(__dirname, process.env, require('node:fs'))
 
-const jsonrpcBin = path.join(HARNESS_DEV, 'packages', 'examples', 'jsonrpc-demo', 'src', 'bin.ts')
-const daemonBin = path.join(HARNESS_DEV, 'packages', 'examples', 'daemon-demo', 'src', 'bin.ts')
+// Upstream alpha.4 removed packages/examples/jsonrpc-demo: the runtime is
+// now the dsh CLI serving the `sdk` profile over stdio JSON-RPC
+// (node --import tsx/esm apps/cli/src/bin.ts --profile sdk). Development/
+// source-launch mode spawns that; packaged mode spawns the single-file exe
+// with the same --profile sdk argv.
+const dshCliBin = path.join(HARNESS_DEV, 'apps', 'cli', 'src', 'bin.ts')
+const DSH_CLI_ENTRY = 'apps/cli/src/bin.ts'
 
-// The cordis leaves live in the checkout: their relative plugin entries
-// (and every bare name) resolve against the checkout tree, and a packaged
-// copy elsewhere would strand those relative paths. The local dir (relative
-// to this module) covers an exotic layout where the shell repo and the SDK
-// checkout are separate and only the shell has config/.
-const checkoutConfigDir = path.join(HARNESS_DEV, 'examples', 'desktop', 'config')
+// The cordis leaves under config/ are historical: the sdk profile composes
+// from $DSH_HOME/profiles/sdk bundle layers, so no leaf argv is passed. The
+// checkout-anchored dir is retained for the Plugins tab's legacy leaf reads.
+const checkoutConfigDir = path.join(HARNESS_DEV, 'packages', 'desktop', 'config')
 const localConfigDir = path.resolve(__dirname, '..', '..', 'config')
 const configDir = require('node:fs').existsSync(path.join(checkoutConfigDir, 'daemon-echo.yml'))
   ? checkoutConfigDir
@@ -155,12 +158,12 @@ const RUNTIME_NODE = resolveRuntimeNode(process.env, process.versions.node)
 
 // Bundled standalone runtime (packaged builds): the win32 single-file exe
 // built by scripts/build-exe-for-python-sdk.ts ships as an extraResource
-// beside the app. When present, the deepseek profiles spawn it directly —
-// its pkg VFS carries the whole plugin closure, so every leaf bare name
-// resolves inside the exe and no repo checkout, tsx, or system Node
-// participates. Echo profiles keep the checkout path: their mock adapter
-// is a shell-owned relative plugin the VFS cannot resolve.
-const BUNDLED_RUNTIME_EXE = 'dsh-jsonrpc-agent-pkg-win32-x64.exe'
+// beside the app. Its entry is the dsh CLI bin, so it takes `--profile sdk`
+// like any other dsh invocation; the pkg VFS carries the whole plugin
+// closure and no repo checkout, tsx, or system Node participates. Echo
+// profiles keep the checkout path: their mock adapter is a shell-owned
+// relative plugin the VFS cannot resolve.
+const BUNDLED_RUNTIME_EXE = 'deepseek-harness-sdk-runtime-win-x64.exe'
 
 function findBundledRuntime() {
   // Packaged builds carry the runtime under resources/runtime; development
@@ -177,36 +180,29 @@ function findBundledRuntime() {
 
 const BUNDLED_RUNTIME = findBundledRuntime()
 
-// Bundled profiles ship their cordis leaves beside the runtime exe
-// (extraResources); the exe needs a real-file config because it reads it
-// through its own VFS-free fs.
-const BUNDLED_PROFILE_LEAF = {
-  'stdio-deepseek': 'bundled-deepseek.yml',
-  'stdio-vibe-deepseek': 'bundled-deepseek-vibe.yml',
+const BUNDLED_PROFILE = {
+  'stdio-deepseek': 'sdk',
+  'stdio-vibe-deepseek': 'sdk',
 }
 
-function bundledLeafPath(name) {
-  const leaf = BUNDLED_PROFILE_LEAF[name]
-  if (!leaf) return null
-  if (process.env.DSH_BUNDLED_RUNTIME_DIR) return path.join(process.env.DSH_BUNDLED_RUNTIME_DIR, 'config', leaf)
-  return path.join(process.resourcesPath, 'runtime', 'config', leaf)
-}
-
-// The bundled runtime's workspace: where the fs stack and sessions root.
-// The shell passes DSH_CWD/DSH_SESSION_ROOT per spawn (see bundledEnv()).
+// The bundled runtime composes from $DSH_HOME/profiles/<name>; the shell
+// gives the runtime a dedicated home under its own user-data directory so
+// session persistence and settings never touch a system-level ~/.dsh.
 function bundledEnvBase() {
   const shellHome = process.env.DSH_DESKTOP_HOME || path.join(os.homedir(), '.dsh-desktop')
   const workspace = process.env.DSH_DESKTOP_WORKSPACE || os.homedir()
-  const sessions = path.join(shellHome, 'sessions')
+  const dshHome = path.join(shellHome, 'dsh-home')
   try {
-    require('node:fs').mkdirSync(sessions, { recursive: true })
-  } catch (_) { /* the persistence plugin surfaces a real error if this fails */ }
+    require('node:fs').mkdirSync(dshHome, { recursive: true })
+  } catch (_) { /* the runtime surfaces a real error if this fails */ }
   return {
     cwd: workspace,
     env: {
       ...(process.env.DEEPSEEK_API_KEY ? { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } : {}),
+      ...(process.env.DEEPSEEK_BASE_URL ? { DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL } : {}),
+      DSH_HOME: dshHome,
+      DSH_TELEMETRY_DISABLED: '1',
       DSH_CWD: workspace,
-      DSH_SESSION_ROOT: sessions,
     },
   }
 }
@@ -235,35 +231,26 @@ function bundledEnvBase() {
 // materialized; only the real spawn path cares whether the bins exist.
 function preflightRuntimeBinaries(name) {
   const p = profile(name)
-  // Bundled standalone profiles carry their whole runtime: the exe plus the
-  // leaf beside it are the only preconditions, and no checkout, tsx, or
-  // system Node participates.
+  // Bundled standalone profiles carry their whole runtime: the exe is the
+  // only precondition (its sdk profile composes from DSH_HOME at runtime),
+  // and no checkout, tsx, or system Node participates.
   if (p.runtime === 'bundled') {
-    const leaf = p.args[0]
     const missing = []
     try { require('node:fs').accessSync(p.cmd) } catch (_) { missing.push(p.cmd) }
-    try { require('node:fs').accessSync(leaf) } catch (_) { missing.push(leaf) }
     if (missing.length > 0) {
       throw Object.assign(new Error(
         `The bundled runtime is incomplete — missing ${missing.join(', ')}. ` +
-        `Rebuild it with scripts/build-exe-for-python-sdk.ts (see examples/desktop README, "Windows double-click packaging").`,
+        `Rebuild it with scripts/build-exe-for-python-sdk.ts (see packages/desktop README, "Windows double-click packaging").`,
       ), { code: 'DSH_BUNDLED_RUNTIME_INCOMPLETE' })
     }
-    return { jsonrpcBin, daemonBin, harnessDev: HARNESS_DEV, bundledRuntime: p.cmd }
+    return { dshCliBin, harnessDev: HARNESS_DEV, bundledRuntime: p.cmd }
   }
-  // Which bin the profile actually spawns. daemon-mode uses daemonBin
-  // (packages/examples/daemon-demo), the two stdio profiles use jsonrpcBin
-  // (packages/examples/jsonrpc-demo). The path is baked into args[2] under
-  // the current profile builder — but rather than reparse argv we consult
-  // p.mode which is authoritative.
+  // Dev mode spawns the dsh CLI's bin with --profile sdk; daemon/echo
+  // profiles are disabled (adapting), so only the CLI entry is expected.
   const missing = []
-  if (p.mode === 'daemon') {
-    try { require('node:fs').accessSync(daemonBin) } catch (_) { missing.push(daemonBin) }
-  } else {
-    try { require('node:fs').accessSync(jsonrpcBin) } catch (_) { missing.push(jsonrpcBin) }
-  }
+  try { require('node:fs').accessSync(dshCliBin) } catch (_) { missing.push(dshCliBin) }
   let depsInstalled = true
-  try { require.resolve('tsx', { paths: [HARNESS_DEV] }) } catch (_) { depsInstalled = false }
+  try { require.resolve('tsx/esm', { paths: [HARNESS_DEV] }) } catch (_) { depsInstalled = false }
   if (!depsInstalled) {
     // Fail loud here instead of a bare node ERR_MODULE_NOT_FOUND after the
     // runtime crashes at boot.
@@ -280,7 +267,7 @@ function preflightRuntimeBinaries(name) {
   }
   if (missing.length > 0) {
     const err = new Error(
-      `DSH runtime SDK not found at ${missing.join(', ')}. ` +
+      `DSH CLI entry not found at ${missing.join(', ')}. ` +
       `If you cloned deepseek-harness, the SDK is this repo itself and the ` +
       `shell auto-detects it — set DSH_DEV_ROOT only for custom layouts, ` +
       `or clone deepseek-harness as a sibling directory of this shell.`,
@@ -290,7 +277,7 @@ function preflightRuntimeBinaries(name) {
     err.harnessDevRoot = HARNESS_DEV
     throw err
   }
-  return { jsonrpcBin, daemonBin, harnessDev: HARNESS_DEV }
+  return { dshCliBin, harnessDev: HARNESS_DEV }
 }
 
 // The Plugins tab writes ~/.dsh-desktop/user-overlay.cordis.yml (an include
@@ -309,17 +296,18 @@ function resolveDaemonLeaf(baseName = 'daemon-echo.yml') {
   }
 }
 
-// Resolve tsx as an absolute file URL so node's --import resolution isn't
+// Resolve tsx/esm (the ESM-only loader hook the dsh CLI source launch
+// requires) as an absolute file URL so node's --import resolution isn't
 // affected by the parent's cwd. A Windows drive path (backslashes) parsed as
 // a bare --import specifier fails ESM resolution, so the URL form is used on
-// every platform. Falls back to the bare specifier if resolution fails so a
-// broken layout at least yields a diagnosable "Cannot find package 'tsx'"
-// instead of a silent early exit.
+// every platform. Falls back to the bare 'tsx/esm' specifier if resolution
+// fails so a broken layout at least yields a diagnosable error instead of a
+// silent early exit.
 const tsxSpecifier = (() => {
   try {
-    return require('node:url').pathToFileURL(require.resolve('tsx', { paths: [HARNESS_DEV] })).href
+    return require('node:url').pathToFileURL(require.resolve('tsx/esm', { paths: [HARNESS_DEV] })).href
   } catch (_) {
-    return 'tsx'
+    return 'tsx/esm'
   }
 })()
 // Tell tsx which tsconfig to honor so path aliases resolve against the dev
@@ -328,38 +316,36 @@ const tsxSpecifier = (() => {
 const tsxTsconfigPath = path.join(HARNESS_DEV, 'tsconfig.json')
 
 // Under Electron, process.execPath is the Electron binary, which treats our
-// `--import tsx <bin>` argv as an app path ("Unable to find Electron app at
-// .../tsx"). ELECTRON_RUN_AS_NODE makes that same binary behave as plain
+// `--import tsx/esm <bin>` argv as an app path ("Unable to find Electron app
+// at .../tsx"). ELECTRON_RUN_AS_NODE makes that same binary behave as plain
 // node. Harmless under real node (smoke tests), essential under `pnpm start`.
 const runtimeEnvBase = {
   ELECTRON_RUN_AS_NODE: '1',
   TSX_TSCONFIG_PATH: tsxTsconfigPath,
+  // The sdk profile composes from DSH_HOME; give the runtime a dedicated
+  // home under the shell's user dir so sessions/settings never touch a
+  // system-level ~/.dsh.
+  DSH_HOME: bundledEnvBase().env.DSH_HOME,
+  DSH_TELEMETRY_DISABLED: '1',
   // Bug #155: the runtime spawns with a curated env, so the deepseek
   // profiles never saw the user's shell key. Pass through ONLY this one
   // key — never the whole process.env (approval: user directive).
   ...(process.env.DEEPSEEK_API_KEY ? { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } : {}),
+  ...(process.env.DEEPSEEK_BASE_URL ? { DEEPSEEK_BASE_URL: process.env.DEEPSEEK_BASE_URL } : {}),
 }
 
-// Per-user runtime directory for the demo daemon's socket + lockfile. Unix
-// sockets have a ~104-byte path budget so we keep this short. Ensured to
-// exist eagerly so the daemon bin doesn't silent-exit on socket-bind failure
-// when tmp gets swept between runs (`/var/folders/...` on macOS).
+// Legacy daemon runtime dir: the daemon/socket modes were retired upstream;
+// the constant is kept only for the exported runtimePaths diagnostic.
 const runtimeDir = path.join(os.tmpdir(), 'dsh-desktop-demo')
-const daemonSocket = path.join(runtimeDir, 'daemon.sock')
-const daemonLockfile = path.join(runtimeDir, 'daemon.lock')
-const daemonSessions = path.join(runtimeDir, 'sessions')
 try {
-  require('node:fs').mkdirSync(daemonSessions, { recursive: true })
-} catch (_) { /* best-effort — the daemon will surface a real error if this fails */ }
+  require('node:fs').mkdirSync(runtimeDir, { recursive: true })
+} catch (_) { /* best-effort — a read-only tmp surfaces an error later */ }
 
-// Which yaml leaf under `config/` each profile boots from. Kept as a map so
-// callers that only need the leaf name (fs-parse in the Plugins tab, static
-// validation, boot probe) don't have to reparse the spawn argv. daemon-echo
-// is the only profile the user overlay is allowed to shadow — the other
-// leaves are dedicated (deepseek/vibe) and get their own overlay lane later.
-// See main.js activeBasePath() — caught the case where
-// the shell hardcoded daemon-echo.yml on every profile and the Plugins tab
-// showed the wrong leaf under stdio-deepseek.
+// Which yaml leaf under `config/` each profile's Plugins-tab view reads.
+// Legacy: the alpha.4 runtime composes from $DSH_HOME/profiles/<name>
+// (bundle layers), not from these leaves; they remain for the legacy leaf
+// reader (fs-parse, boot probe, activeBasePath) to keep that surface stable
+// while the runtime anchoring migrates to `dsh --profile sdk`.
 const PROFILE_LEAF = {
   'daemon-echo': 'daemon-echo.yml',
   'stdio-echo': 'echo-jsonrpc.yml',
@@ -431,46 +417,32 @@ function leafPathFor(name) {
 function profile(name) {
   switch (name) {
     case 'daemon-echo':
+      // Daemon/socket mode has no equivalent in the alpha.4 runtime (the
+      // SDK JSON-RPC server serves stdio only). Retired from the UI; the
+      // entry stays so persisted configs don't crash the switch.
       return {
-        mode: 'daemon',
-        leafName: PROFILE_LEAF['daemon-echo'],
+        mode: 'stdio',
         provider: 'mock-echo',
-        daemon: {
-          cmd: RUNTIME_NODE.cmd,
-          // resolveDaemonLeaf picks the user overlay when the Plugins tab or
-          // onboarding step has written one, else the raw base leaf. Both are
-          // valid daemon-demo inputs.
-          args: ['--import', tsxSpecifier, daemonBin, resolveDaemonLeaf('daemon-echo.yml')],
-          // Point cwd at a demo-owned tmp dir. The daemon writes .sessions
-          // relative to cwd when persistenceRoot is relative, and running
-          // from the dev clone tickles a silent early-exit under some node
-          // sandbox conditions (empirically: same command from a mkdtemp
-          // workdir works, from HARNESS_DEV cwd fails without stderr).
-          cwd: runtimeDir,
-          env: {
-            ...runtimeEnvBase,
-            DSH_DAEMON_SOCKET_PATH: daemonSocket,
-            DSH_DAEMON_LOCKFILE_PATH: daemonLockfile,
-            DSH_DAEMON_SESSIONS_ROOT: daemonSessions,
-          },
-          socketPath: daemonSocket,
-        },
+        disabled: true,
+        disabledReason: 'daemon modes were retired upstream; use stdio · deepseek instead',
+        leafName: PROFILE_LEAF['daemon-echo'],
         model: 'mock-echo',
-        label: 'daemon (unix socket, mock, no key)',
+        label: 'daemon · (retired upstream)',
         protocolVersion: 2,
         capabilities: { interruptions: true },
       }
     case 'stdio-echo':
+      // The keyless echo adapter is a shell-owned relative plugin; the sdk
+      // profile has no mock-echo route. Retired from the UI until a mock
+      // overlay is written for the sdk profile.
       return {
         mode: 'stdio',
-        leafName: PROFILE_LEAF['stdio-echo'],
         provider: 'mock-echo',
-        cmd: RUNTIME_NODE.cmd,
-        args: ['--import', tsxSpecifier, jsonrpcBin, path.join(configDir, PROFILE_LEAF['stdio-echo'])],
-        cwd: HARNESS_DEV,
-        env: { ...runtimeEnvBase },
+        disabled: true,
+        disabledReason: 'keyless echo needs a mock overlay for the sdk profile (adapting)',
+        leafName: PROFILE_LEAF['stdio-echo'],
         model: 'mock-echo',
-        label: 'stdio (direct, mock, no key)',
+        label: 'stdio · echo (mock, adapting)',
         protocolVersion: 2,
         capabilities: { interruptions: true },
       }
@@ -480,12 +452,12 @@ function profile(name) {
         return {
           mode: 'stdio',
           runtime: 'bundled',
-          leafName: BUNDLED_PROFILE_LEAF['stdio-deepseek'],
+          provider: 'deepseek-official',
           cmd: BUNDLED_RUNTIME,
-          args: [bundledLeafPath('stdio-deepseek')],
+          args: ['--profile', BUNDLED_PROFILE['stdio-deepseek']],
           cwd: bundled.cwd,
           env: bundled.env,
-          provider: 'deepseek-official',
+          leafName: PROFILE_LEAF['stdio-deepseek'],
           model: 'deepseek-v4-flash',
           label: 'standalone runtime · deepseek-v4-flash (needs DEEPSEEK_API_KEY)',
           protocolVersion: 2,
@@ -494,12 +466,15 @@ function profile(name) {
       }
       return {
         mode: 'stdio',
-        leafName: PROFILE_LEAF['stdio-deepseek'],
         provider: 'deepseek-official',
         cmd: RUNTIME_NODE.cmd,
-        args: ['--import', tsxSpecifier, jsonrpcBin, path.join(configDir, PROFILE_LEAF['stdio-deepseek'])],
+        // dsh CLI source launch: node --import tsx/esm apps/cli/src/bin.ts
+        // --profile sdk (the ESM-only loader hook the source-launch note
+        // mandates). The sdk profile serves stdio JSON-RPC until stdin EOF.
+        args: ['--import', tsxSpecifier, dshCliBin, '--profile', 'sdk'],
         cwd: HARNESS_DEV,
         env: { ...runtimeEnvBase },
+        leafName: PROFILE_LEAF['stdio-deepseek'],
         model: 'deepseek-v4-flash',
         label: 'stdio · deepseek-v4-flash (needs DEEPSEEK_API_KEY)',
         protocolVersion: 2,
@@ -512,24 +487,16 @@ function profile(name) {
     // "Vibe a plugin" entry as disabled under this profile — it's here so
     // the wiring is uniform, and so QA can boot the leaf without a key.
     case 'daemon-vibe-echo':
+      // Retired with upstream's daemon/socket removal; keep the entry so
+      // persisted configs don't crash the switch.
       return {
-        mode: 'daemon',
-        leafName: PROFILE_LEAF['daemon-vibe-echo'],
+        mode: 'stdio',
         provider: 'mock-echo',
-        daemon: {
-          cmd: RUNTIME_NODE.cmd,
-          args: ['--import', tsxSpecifier, daemonBin, path.join(configDir, PROFILE_LEAF['daemon-vibe-echo'])],
-          cwd: HARNESS_DEV,
-          env: {
-            ...runtimeEnvBase,
-            DSH_DAEMON_SOCKET_PATH: daemonSocket,
-            DSH_DAEMON_LOCKFILE_PATH: daemonLockfile,
-            DSH_DAEMON_SESSIONS_ROOT: daemonSessions,
-          },
-          socketPath: daemonSocket,
-        },
+        disabled: true,
+        disabledReason: 'daemon modes were retired upstream; use stdio · deepseek instead',
+        leafName: PROFILE_LEAF['daemon-vibe-echo'],
         model: 'mock-echo',
-        label: 'vibe · echo (mock, no key — vibe entry disabled)',
+        label: 'vibe · daemon (retired upstream)',
         protocolVersion: 2,
         capabilities: { interruptions: true },
         vibeCapable: false,
@@ -540,12 +507,12 @@ function profile(name) {
         return {
           mode: 'stdio',
           runtime: 'bundled',
-          leafName: BUNDLED_PROFILE_LEAF['stdio-vibe-deepseek'],
+          provider: 'deepseek-official',
           cmd: BUNDLED_RUNTIME,
-          args: [bundledLeafPath('stdio-vibe-deepseek')],
+          args: ['--profile', BUNDLED_PROFILE['stdio-vibe-deepseek']],
           cwd: bundled.cwd,
           env: bundled.env,
-          provider: 'deepseek-official',
+          leafName: PROFILE_LEAF['stdio-vibe-deepseek'],
           model: 'deepseek-v4-pro',
           label: 'standalone vibe · deepseek-v4-pro (needs DEEPSEEK_API_KEY)',
           protocolVersion: 2,
@@ -555,12 +522,12 @@ function profile(name) {
       }
       return {
         mode: 'stdio',
-        leafName: PROFILE_LEAF['stdio-vibe-deepseek'],
         provider: 'deepseek-official',
         cmd: RUNTIME_NODE.cmd,
-        args: ['--import', tsxSpecifier, jsonrpcBin, path.join(configDir, PROFILE_LEAF['stdio-vibe-deepseek'])],
+        args: ['--import', tsxSpecifier, dshCliBin, '--profile', 'sdk'],
         cwd: HARNESS_DEV,
         env: { ...runtimeEnvBase },
+        leafName: PROFILE_LEAF['stdio-vibe-deepseek'],
         model: 'deepseek-v4-pro',
         label: 'vibe · deepseek-v4-pro (needs DEEPSEEK_API_KEY)',
         protocolVersion: 2,
@@ -576,7 +543,7 @@ function profile(name) {
 module.exports = {
   profile,
   listProfiles: () => ['daemon-echo', 'stdio-echo', 'stdio-deepseek', 'daemon-vibe-echo', 'stdio-vibe-deepseek'],
-  runtimePaths: { runtimeDir, daemonSocket, daemonLockfile, daemonSessions },
+  runtimePaths: { runtimeDir },
   resolveDaemonLeaf,
   resolveHarnessDev,
   leafPathFor,
@@ -589,6 +556,5 @@ module.exports = {
   // Exposed for tests + diagnostics; the actual spawn path uses the
   // preflight helper above.
   _HARNESS_DEV: HARNESS_DEV,
-  _jsonrpcBin: jsonrpcBin,
-  _daemonBin: daemonBin,
+  _dshCliBin: dshCliBin,
 }

@@ -1,3 +1,9 @@
+# LEGACY leaf (retired surface): the daemon/socket runtime
+# (packages/examples/daemon-demo) was removed upstream in alpha.4 and the
+# daemon-echo profile is disabled in the shell. Kept as the Plugins tab's
+# legacy leaf view and as the user-overlay base so persisted configs don't
+# break the switch statement. Not loadable by any current runtime.
+#
 # Daemon-hosted JSON-RPC serving config for the desktop demo — keyless echo.
 #
 # The daemon bin (packages/examples/daemon-demo) binds the unix socket at

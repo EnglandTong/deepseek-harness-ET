@@ -60,8 +60,10 @@ test('buildIsolatedDaemonEnv inherits process.env and merges extraEnv last', () 
     runtime: { socketPath: '/s', lockfilePath: '/l', sessionsRoot: '/r' },
     extraEnv: { DEEPSEEK_API_KEY: 'sk-test', TSX_TSCONFIG_PATH: '/override' },
   })
-  // process.env inheritance is proven via PATH (present on every platform we run on).
-  assert.equal(typeof env.PATH, 'string')
+  // process.env inheritance is proven via PATH. Windows env keys are
+  // case-insensitive ("Path" on disk), so look the key up case-insensitively.
+  const pathKey = Object.keys(env).find((k) => k.toUpperCase() === 'PATH')
+  assert.equal(typeof env[pathKey], 'string')
   assert.equal(env.DEEPSEEK_API_KEY, 'sk-test')
   // extraEnv overrides the defaults (spread order).
   assert.equal(env.TSX_TSCONFIG_PATH, '/override')

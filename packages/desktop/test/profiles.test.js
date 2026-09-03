@@ -13,6 +13,7 @@ const test = require('node:test')
 const assert = require('node:assert')
 const path = require('node:path')
 const fs = require('node:fs')
+const os = require('node:os')
 
 const { profile, listProfiles, leafPathFor, PROFILE_LEAF, configDir } = require('../src/main/profiles.js')
 
@@ -73,17 +74,52 @@ test('profile() surfaces leafName matching leafPathFor', () => {
   }
 })
 
-test('profile() spawn args reference the profile-specific leaf', () => {
-  // Regression pin: daemon-echo boots resolveDaemonLeaf (overlay-aware),
-  // every other profile embeds its own config path. If someone hardcodes
-  // daemon-echo.yml into another profile's args, this catches it.
+test('stdio deepseek profiles launch the dsh CLI with the sdk profile', () => {
+  // The alpha.4 runtime is the dsh CLI serving `--profile sdk` over stdio
+  // JSON-RPC (packages/examples/jsonrpc-demo is gone), so the spawn argv
+  // ends with the profile pair instead of a yml leaf. Regression pin: if
+  // someone reverts to leaf argv or retargets the profile, this catches it.
   const stdioDeepseek = profile('stdio-deepseek')
-  const lastArg = stdioDeepseek.args[stdioDeepseek.args.length - 1]
-  assert.match(lastArg, /deepseek-jsonrpc\.yml$/)
-  assert.doesNotMatch(lastArg, /daemon-echo\.yml$/)
+  assert.strictEqual(stdioDeepseek.mode, 'stdio')
+  assert.deepStrictEqual(stdioDeepseek.args.slice(-2), ['--profile', 'sdk'])
+  assert.match(stdioDeepseek.args[stdioDeepseek.args.length - 3], /bin\.ts$/)
 
-  const stdioEcho = profile('stdio-echo')
-  const echoArg = stdioEcho.args[stdioEcho.args.length - 1]
-  assert.match(echoArg, /echo-jsonrpc\.yml$/)
-  assert.doesNotMatch(echoArg, /daemon-echo\.yml$/)
+  const stdioVibe = profile('stdio-vibe-deepseek')
+  assert.deepStrictEqual(stdioVibe.args.slice(-2), ['--profile', 'sdk'])
+  assert.doesNotMatch(stdioVibe.args.join(' '), /daemon-echo\.yml/)
+})
+
+test('bundled deepseek profiles pass --profile sdk to the standalone exe', () => {
+  // When a bundled runtime exe is materialized (packaged builds, or a dev
+  // checkout with DSH_BUNDLED_RUNTIME_DIR staged), the deepseek profiles
+  // spawn it with the same --profile sdk argv. BUNDLED_RUNTIME is captured
+  // at module load, so point the env at a stub and re-require fresh.
+  const stubDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-desktop-bundled-'))
+  fs.writeFileSync(path.join(stubDir, 'deepseek-harness-sdk-runtime-win-x64.exe'), '')
+  process.env.DSH_BUNDLED_RUNTIME_DIR = stubDir
+  try {
+    delete require.cache[require.resolve('../src/main/profiles.js')]
+    const fresh = require('../src/main/profiles.js')
+    for (const name of ['stdio-deepseek', 'stdio-vibe-deepseek']) {
+      const p = fresh.profile(name)
+      assert.strictEqual(p.runtime, 'bundled')
+      assert.deepStrictEqual(p.args, ['--profile', 'sdk'])
+      assert.strictEqual(p.cmd, path.join(stubDir, 'deepseek-harness-sdk-runtime-win-x64.exe'))
+    }
+  } finally {
+    delete process.env.DSH_BUNDLED_RUNTIME_DIR
+    delete require.cache[require.resolve('../src/main/profiles.js')]
+    fs.rmSync(stubDir, { recursive: true, force: true })
+  }
+})
+
+test('retired daemon/echo profiles report disabled instead of spawning', () => {
+  // The alpha.4 runtime serves stdio only: daemon/socket mode and the
+  // shell-owned mock-echo adapter have no route. The entries stay (persisted
+  // configs reference them) but must never yield a spawnable command.
+  for (const name of ['daemon-echo', 'stdio-echo', 'daemon-vibe-echo']) {
+    const p = profile(name)
+    assert.strictEqual(p.disabled, true, `${name} should be disabled`)
+    assert.ok(p.disabledReason.length > 0, `${name} should carry a reason`)
+  }
 })

@@ -7,14 +7,16 @@
 //
 //   1. env `DSH_DEV_ROOT` — explicit override.
 //   2. walk-up in-repo — first ancestor of the startDir that contains
-//      `packages/examples/jsonrpc-demo/src/bin.ts`. This is the shape a
-//      user hits when this shell ships inside deepseek-harness at
-//      `examples/desktop/`.
+//      `apps/cli/src/bin.ts` (the dsh CLI entry the alpha.4 source launch
+//      spawns). This is the shape a user hits when this shell ships
+//      inside deepseek-harness at `packages/desktop/`.
 //   3. sibling `deepseek-harness-dev/` (with `.worktrees/integration`
 //      preference) — the original dev-workflow layout.
 //
 // These tests drive the resolver against a mock filesystem so the
-// ordering is locked without needing either real layout on disk.
+// ordering is locked without needing either real layout on disk. Fixtures
+// resolve every root through `path.resolve` before joining the marker so
+// the ordering is locked identically on Windows and POSIX separators.
 
 'use strict'
 
@@ -23,6 +25,8 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 
 const { resolveHarnessDev } = require('../src/main/profiles.js')
+
+const CLI_MARKER_AT = (root) => path.join(path.resolve(root), 'apps', 'cli', 'src', 'bin.ts')
 
 function mockFsWith(existing) {
   // A minimal `accessSync` shim that throws unless the queried path
@@ -42,73 +46,69 @@ function mockFsWith(existing) {
 test('candidate 1 wins: DSH_DEV_ROOT env overrides everything else', () => {
   // Even if the in-repo marker exists AND a sibling clone exists, the
   // env override takes precedence and gets resolved to an absolute path.
-  const start = '/repo/examples/desktop/src/main'
+  const start = path.resolve('/repo/packages/desktop/src/main')
   const fs = mockFsWith([
     // in-repo marker (would win candidate 2 otherwise)
-    '/repo/packages/examples/jsonrpc-demo/src/bin.ts',
-    // integration daemon dir (would win candidate 3 otherwise)
-    '/other/deepseek-harness-dev/.worktrees/integration/packages/examples/daemon-demo',
+    CLI_MARKER_AT('/repo'),
+    // integration cli entry (would win candidate 3 otherwise)
+    CLI_MARKER_AT(path.resolve('/other/deepseek-harness-dev/.worktrees/integration')),
   ])
   const got = resolveHarnessDev(start, { DSH_DEV_ROOT: '/custom/checkout' }, fs)
   assert.equal(got, path.resolve('/custom/checkout'))
 })
 
 test('candidate 2 wins: in-repo marker on the ancestor chain when no env', () => {
-  // Startdir is examples/desktop/src/main; repo root two levels up
-  // holds the jsonrpc-demo marker. The walk-up should return that root
+  // Startdir is packages/desktop/src/main; repo root three levels up
+  // holds the dsh CLI marker. The walk-up should return that root
   // before falling through to the sibling candidate.
-  const start = '/repo/examples/desktop/src/main'
-  const marker = '/repo/packages/examples/jsonrpc-demo/src/bin.ts'
-  const fs = mockFsWith([marker])
+  const start = path.resolve('/repo/packages/desktop/src/main')
+  const fs = mockFsWith([CLI_MARKER_AT('/repo')])
   const got = resolveHarnessDev(start, {}, fs)
-  assert.equal(got, '/repo')
+  assert.equal(got, path.resolve('/repo'))
 })
 
 test('candidate 2 walks up at most 6 levels, then gives up', () => {
-  // Bury the marker 7 levels up — beyond the cap. Resolver must NOT
+  // Bury the marker 7+ levels up — beyond the cap. Resolver must NOT
   // find it; it should fall through to candidate 3 (sibling) which
   // itself doesn't exist here, so the resolver returns the base sibling
   // path unchanged (no exception).
-  const start = '/a/b/c/d/e/f/g/src/main'
-  const marker = '/a/packages/examples/jsonrpc-demo/src/bin.ts' // 8 levels up from start
-  const fs = mockFsWith([marker])
+  const start = path.resolve('/a/b/c/d/e/f/g/src/main')
+  const fs = mockFsWith([CLI_MARKER_AT('/a')]) // 8 walk levels up from start
   const got = resolveHarnessDev(start, {}, fs)
-  // Sibling fallback: __dirname's ../../../deepseek-harness-dev
+  // Sibling fallback: startDir's ../../../deepseek-harness-dev
   const expectedBase = path.resolve(start, '..', '..', '..', 'deepseek-harness-dev')
   assert.equal(got, expectedBase, 'walk-up must not reach past the 6-level cap; falls through to sibling')
 })
 
 test('candidate 3 wins: sibling deepseek-harness-dev is the fallback when no marker on chain', () => {
-  // No in-repo marker anywhere, and no integration daemon-demo either
+  // No in-repo marker anywhere, and no integration cli entry either
   // — the resolver returns the base sibling path.
-  const start = '/ws/dsh-desktop-demo/src/main'
+  const start = path.resolve('/ws/dsh-desktop-demo/src/main')
   const fs = mockFsWith([]) // nothing exists
   const got = resolveHarnessDev(start, {}, fs)
-  assert.equal(got, path.resolve('/ws/dsh-desktop-demo/src/main', '..', '..', '..', 'deepseek-harness-dev'))
-  assert.equal(got, '/ws/deepseek-harness-dev', 'sibling one directory up from the demo root')
+  assert.equal(got, path.resolve(start, '..', '..', '..', 'deepseek-harness-dev'), 'sibling one directory up from the demo root')
 })
 
-test('candidate 3 prefers .worktrees/integration when daemon-demo is materialized there', () => {
+test('candidate 3 prefers .worktrees/integration when its cli entry is materialized there', () => {
   // Sibling `deepseek-harness-dev` exists with the integration worktree
-  // materialized (Phase-2 daemon lives there until it lands on master),
-  // so the resolver returns the integration path over the base clone.
-  const start = '/ws/dsh-desktop-demo/src/main'
-  const base = '/ws/deepseek-harness-dev'
+  // materialized (its dsh CLI entry is the shape the source launch
+  // loads), so the resolver returns the integration path over the base clone.
+  const start = path.resolve('/ws/dsh-desktop-demo/src/main')
+  const base = path.resolve(start, '..', '..', '..', 'deepseek-harness-dev')
   const integration = path.join(base, '.worktrees', 'integration')
-  const daemonDir = path.join(integration, 'packages', 'examples', 'daemon-demo')
-  const fs = mockFsWith([daemonDir])
+  const fs = mockFsWith([CLI_MARKER_AT(integration)])
   const got = resolveHarnessDev(start, {}, fs)
-  assert.equal(got, integration, 'integration worktree preferred over base clone when daemon-demo is there')
+  assert.equal(got, integration, 'integration worktree preferred over base clone when its cli entry is there')
 })
 
-test('official-repo shape end-to-end: startDir inside examples/desktop resolves to repo root', () => {
+test('official-repo shape end-to-end: startDir inside packages/desktop resolves to repo root', () => {
   // The failure the P0-1 fix was written for: user clones
-  // deepseek-harness fresh, launches from examples/desktop. Resolver
-  // must NOT hand back `deepseek-harness/examples/deepseek-harness-dev`
-  // (which doesn't exist). It must return the repo root itself.
-  const start = '/Users/downloader/deepseek-harness/examples/desktop/src/main'
-  const marker = '/Users/downloader/deepseek-harness/packages/examples/jsonrpc-demo/src/bin.ts'
-  const fs = mockFsWith([marker])
+  // deepseek-harness fresh, launches the shell from packages/desktop.
+  // Resolver must NOT hand back
+  // `deepseek-harness/packages/deepseek-harness-dev` (which doesn't
+  // exist). It must return the repo root itself.
+  const start = path.resolve('/Users/downloader/deepseek-harness/packages/desktop/src/main')
+  const fs = mockFsWith([CLI_MARKER_AT('/Users/downloader/deepseek-harness')])
   const got = resolveHarnessDev(start, {}, fs)
-  assert.equal(got, '/Users/downloader/deepseek-harness')
+  assert.equal(got, path.resolve('/Users/downloader/deepseek-harness'))
 })

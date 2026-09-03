@@ -28,7 +28,7 @@
 const path = require('node:path')
 
 /** Marker that identifies a deepseek-harness checkout (same probe profiles.js uses). */
-const DEV_ROOT_MARKER = path.join('packages', 'examples', 'jsonrpc-demo', 'src', 'bin.ts')
+const DEV_ROOT_MARKER = path.join('apps', 'cli', 'src', 'bin.ts')
 
 /** Walk-up cap, mirroring profiles.js so a deep install dir can't scan the filesystem root. */
 const WALK_UP_LIMIT = 6

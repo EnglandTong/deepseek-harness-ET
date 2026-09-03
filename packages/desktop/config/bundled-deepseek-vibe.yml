@@ -1,7 +1,13 @@
-# Bundled-standalone vibe leaf for the packaged desktop app: the real
-# DeepSeek adapter plus the cordis self-modification tools, loaded by the
-# single-file runtime exe (every bare name resolves inside its VFS). Needs
-# `DEEPSEEK_API_KEY` in the shell environment (passed through on spawn).
+# LEGACY leaf (alpha.4 anchoring): the bundled runtime launches
+# `dsh --profile sdk` and composes from its bundled bundle layers
+# ($DSH_BUNDLED_RUNTIME_DIR/config), so this file is no longer loaded by the
+# packaged app's runtime. Kept as the Plugins tab's legacy leaf view for the
+# stdio-vibe-deepseek profile. Composition reference:
+# packages/bundle/sdk-minimal/cordis.yml.
+#
+# Vibe variant: the real DeepSeek adapter plus the cordis self-modification
+# tools on stdio. Needs `DEEPSEEK_API_KEY` in the shell environment (passed
+# through on spawn).
 
 # Stdio JSON-RPC serving surface.
 - id: sdk-jsonrpc-server

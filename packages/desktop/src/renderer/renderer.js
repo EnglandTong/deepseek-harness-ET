@@ -7229,18 +7229,7 @@ function classifyRuntimeError(raw) {
     return {
       icon: '!',
       title: 'DEEPSEEK_API_KEY needed for real-model profile',
-      hint: 'The default profile talks to DeepSeek and needs a key. Two options: (1) set DEEPSEEK_API_KEY in .env or your shell (see README Quick Start), or (2) try the keyless echo demo to explore the UI first.',
-      // switchTarget = stdio-echo (P0-3 fix, 2026-07-18): the daemon-echo
-      // profile boots the `dsh-daemon-demo` bundle which lives in the
-      // `.worktrees/integration` worktree and hasn't landed on the
-      // deepseek-harness master branch yet. A fresh clone of the
-      // official repo hits this card when no key is set — pointing them
-      // at daemon-echo would preflight-fail on the missing daemon bin,
-      // which is exactly the wrong follow-up. stdio-echo boots the
-      // in-tree jsonrpc-demo bin (present on master) and is keyless, so
-      // the click reliably drops the user into a working chat.
-      switchTarget: 'stdio-echo',
-      switchLabel: 'Switch to keyless demo (stdio-echo)',
+      hint: 'The profile talks to DeepSeek and needs a key. Set DEEPSEEK_API_KEY in .env at the DSH runtime root (or export it in your shell), then restart the runtime. No keyless demo profile exists on the sdk runtime.',
     }
   }
   return { icon: '!', title: 'Runtime warning', hint: 'The daemon reported an issue. The chat pane will keep working; see details for the raw message.' }
@@ -8793,6 +8782,12 @@ async function bootUi() {
   for (const p of profiles) {
     const opt = document.createElement('option')
     opt.value = p.id; opt.textContent = p.label
+    // Retired profiles (daemon/echo) are not spawnable in the alpha.4
+    // runtime; grey them out with the reason as tooltip.
+    if (p.disabled) {
+      opt.disabled = true
+      if (p.disabledReason) opt.title = p.disabledReason
+    }
     profileSelect.appendChild(opt)
   }
   profileSelect.addEventListener('change', async () => {

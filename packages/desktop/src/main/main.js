@@ -88,6 +88,15 @@ async function startRuntime(name) {
   pendingInterrupts.clear()
 
   currentProfileName = name
+  const p = profile(name)
+  // Retired profiles (daemon/echo) surface no spawnable runtime in the
+  // alpha.4 world; fail loud with the reason instead of spawning an empty
+  // cmd and hanging the status bar on "starting".
+  if (p.disabled) {
+    const message = `Profile "${name}" is unavailable: ${p.disabledReason || 'retired'}.`
+    send('runtime:error', { message })
+    throw new Error(message)
+  }
   // HARNESS_DEV phantom-path preflight (2026-07-18, fix/harness-dev-guard).
   // profiles.js resolves the runtime SDK against __dirname; when the shell
   // boots from a worktree that has no sibling `deepseek-harness-dev/`, that
@@ -105,7 +114,6 @@ async function startRuntime(name) {
     // rather than falsely claiming the runtime is up.
     throw err
   }
-  const p = profile(name)
   p.onInterrupt = onInterrupt
   supervisor = new RuntimeSupervisor({ profile: p })
   supervisor.on('status', (s) => send('runtime:status', {
@@ -277,7 +285,10 @@ app.whenReady().then(async () => {
     ipcMain.handle('window:reveal', () => revealWindow(win))
   }
 
-  ipcMain.handle('profiles:list', () => listProfiles().map((n) => ({ id: n, label: profile(n).label })))
+  ipcMain.handle('profiles:list', () => listProfiles().map((n) => {
+    const p = profile(n)
+    return { id: n, label: p.label, disabled: !!p.disabled, disabledReason: p.disabledReason || '' }
+  }))
   // Preflight (2026-07-18) NO_ADAPTER guard: which models each profile's yml
   // leaf declares. Same source of truth as the on-status `supportedModels`
   // field; exposed as a lookup so the renderer can hydrate before any
@@ -652,25 +663,17 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Runtime boot probe (A2). Boots an isolated daemon over the current
+  // Runtime boot probe (A2). Boots an isolated runtime over the current
   // active leaf (overlay if present, else the base leaf directly), waits
   // for ping-or-fail, tears down. Fail-loud stderr is parsed and mapped to
-  // plugin rows. Slow — ~1-3s under mock-echo — so the renderer only
-  // invokes this on explicit user action, not on every save.
+  // plugin rows. Slow — ~1-3s — so the renderer only invokes this on
+  // explicit user action, not on every save.
+  // Upstream alpha.4 has no socket runtime (the sdk profile is stdio-only),
+  // so the probe fails loud with that reason instead of spawning a phantom
+  // daemon-demo bin. Re-enable alongside the playground when a socket
+  // equivalent lands.
   ipcMain.handle('plugins:probe', async () => {
-    const probeMod = require('./plugin-probe.js')
-    const overlayExists = require('node:fs').existsSync(P.overlayPath())
-    const overlayOrLeafPath = overlayExists ? P.overlayPath() : activeBasePath()
-    const { daemonBin, tsxSpecifier, tsxTsconfigPath } = resolveDaemonRunArgs()
-    const baseText = require('node:fs').readFileSync(activeBasePath(), 'utf8')
-    const baseEntries = P.parseBaseEntries(baseText)
-    const overlay = P.readOverlayFile(P.overlayPath())
-    return probeMod.probeBoot({
-      overlayOrLeafPath,
-      daemonBin, tsxSpecifier, tsxTsconfigPath,
-      baseEntries,
-      overlayPatches: overlay.patches,
-    })
+    throw new Error('Test boot is unavailable: the socket runtime was retired upstream; the sdk profile serves stdio JSON-RPC only.')
   })
 
   ipcMain.handle('plugins:toggle', (_e, { id, disabled }) => {
@@ -1134,65 +1137,18 @@ app.whenReady().then(async () => {
 
   // ---- Playground: isolated scratch runtime for testing overlay edits ------
   //
-  // The plugin Playground boots a dedicated dsh-daemon-demo against a scratch
-  // copy of the user overlay; the renderer drives it via a distinct IPC
-  // surface so notifications from the two runtimes never mingle. Two commit
-  // paths: apply (scratch overlay → live overlay + restart main runtime) or
-  // discard (kill isolated daemon, drop scratch dir).
-  //
-  // `resolveDaemonRunArgs` is also used by the boot-probe IPC above (via a
-  // forward reference — plugins:probe reads this closure once at call time,
-  // not at handler registration).
+  // The plugin Playground booted a dedicated daemon against a scratch copy of
+  // the user overlay. Upstream alpha.4 removed the socket runtime
+  // (packages/examples/daemon-demo): the sdk profile serves stdio JSON-RPC
+  // only, and a scratch runtime needs its own socket. Fail loud at the
+  // entry (the user's click) with the reason instead of spawning a phantom
+  // path from a retired bin. Re-enable when a socket equivalent lands; the
+  // scratch-overlay machinery (playground.js) is retained for that port.
   const playgroundModule = require('./playground.js')
   let playground = null
 
-  function resolveDaemonRunArgs() {
-    const devRoot = process.env.DSH_DEV_ROOT
-      ? path.resolve(process.env.DSH_DEV_ROOT)
-      : path.resolve(__dirname, '..', '..', '..', 'deepseek-harness-dev')
-    const worktreeBin = path.join(devRoot, '.worktrees', 'integration',
-      'packages', 'examples', 'daemon-demo', 'src', 'bin.ts')
-    const daemonBin = require('node:fs').existsSync(worktreeBin)
-      ? worktreeBin
-      : path.join(devRoot, 'packages', 'examples', 'daemon-demo', 'src', 'bin.ts')
-    let tsxSpecifier
-    try {
-      // File-URL form: a Windows drive path parsed as a bare --import
-      // specifier fails ESM resolution (see profiles.js tsxSpecifier).
-      tsxSpecifier = require('node:url').pathToFileURL(
-        require.resolve('tsx', { paths: [path.dirname(daemonBin)] }),
-      ).href
-    } catch (_) { tsxSpecifier = 'tsx' }
-    const tsxTsconfigPath = path.join(
-      daemonBin.includes('.worktrees')
-        ? path.join(devRoot, '.worktrees', 'integration')
-        : devRoot,
-      'tsconfig.json',
-    )
-    return { daemonBin, tsxSpecifier, tsxTsconfigPath }
-  }
-
   ipcMain.handle('playground:start', async () => {
-    if (playground) return { ok: true, status: 'already-running' }
-    const { daemonBin, tsxSpecifier, tsxTsconfigPath } = resolveDaemonRunArgs()
-    try {
-      playground = await playgroundModule.startPlayground({
-        liveOverlayPath: P.overlayPath(),
-        baseLeafPath: activeBasePath(),
-        daemonBin, tsxSpecifier, tsxTsconfigPath,
-        onNotify: (method, params) => send('playground:notify', { method, params }),
-        onStatus: (status) => send('playground:status', { status }),
-        onCrash: (info) => send('playground:crash', info),
-        onStderr: (chunk) => send('playground:stderr', chunk),
-        onInterrupt,
-      })
-      return { ok: true, status: 'started', scratchDir: playground.scratchDir }
-    } catch (err) {
-      throw new Error(
-        `playground boot failed: ${err.message}` +
-        (err.stderrTail ? `\n--- daemon stderr ---\n${err.stderrTail}` : ''),
-      )
-    }
+    throw new Error('Playground is unavailable: the socket runtime was retired upstream; the sdk profile serves stdio JSON-RPC only.')
   })
 
   ipcMain.handle('playground:newSession', async () => {
@@ -1257,59 +1213,12 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Toggle inside the SCRATCH overlay + reboot the isolated daemon over the
-  // same scratch dir. We can't just call startPlayground again (that re-seeds
-  // a new scratch); we tear down the supervisor + isolated child and spawn
-  // fresh against the mutated file.
-  ipcMain.handle('playground:toggle', async (_e, { id, disabled }) => {
-    if (!playground) throw new Error('playground not started')
-    let overlay = P.readOverlayFile(playground.scratchOverlayPath)
-    if (!overlay.base) overlay = { base: activeBasePath(), patches: [] }
-    const next = P.togglePatch(overlay, id, !!disabled)
-    P.writeOverlayFile(playground.scratchOverlayPath, next)
-    const prev = playground
-    playground = null
-    try { await prev.supervisor.stop() } catch (_) {}
-    try { await prev.isolated.dispose() } catch (_) {}
-    const { daemonBin, tsxSpecifier, tsxTsconfigPath } = resolveDaemonRunArgs()
-    const { spawnIsolatedDaemon } = require('./isolated-daemon.js')
-    const isolated = await spawnIsolatedDaemon({
-      overlayOrLeafPath: prev.scratchOverlayPath,
-      daemonBin, tsxSpecifier, tsxTsconfigPath,
-      cwd: prev.scratchDir, purpose: 'playground',
-    })
-    const supervisor = new RuntimeSupervisor({
-      profile: {
-        mode: 'daemon',
-        daemon: {
-          cmd: process.execPath,
-          args: ['--import', tsxSpecifier, daemonBin, prev.scratchOverlayPath],
-          cwd: prev.scratchDir,
-          env: {
-            TSX_TSCONFIG_PATH: tsxTsconfigPath,
-            DSH_DAEMON_SOCKET_PATH: isolated.socketPath,
-            DSH_DAEMON_LOCKFILE_PATH: isolated.lockfilePath,
-            DSH_DAEMON_SESSIONS_ROOT: isolated.sessionsRoot,
-          },
-          socketPath: isolated.socketPath,
-        },
-        model: 'mock-echo', label: 'playground · isolated daemon',
-        protocolVersion: 2, capabilities: { interruptions: true },
-        onInterrupt,
-      },
-    })
-    supervisor.on('notify', (m, p) => send('playground:notify', { method: m, params: p }))
-    supervisor.on('status', (s) => send('playground:status', { status: s }))
-    supervisor.on('crash', (info) => send('playground:crash', info))
-    supervisor.on('stderr', (chunk) => send('playground:stderr', chunk))
-    await supervisor.start()
-    playground = new playgroundModule.PlaygroundSession({
-      scratchOverlayPath: prev.scratchOverlayPath,
-      scratchDir: prev.scratchDir,
-      isolated, supervisor, profile: prev.profile,
-      originalBaseRef: prev.originalBaseRef,
-    })
-    return { ok: true }
+  // Toggle inside the SCRATCH overlay + reboot the isolated runtime over the
+  // same scratch dir. Unreachable while playground:start fails loud (see
+  // above); the handler stays so a stray renderer call still reports a
+  // consistent error instead of a missing-channel invoke failure.
+  ipcMain.handle('playground:toggle', async () => {
+    throw new Error('Playground is unavailable: the socket runtime was retired upstream; the sdk profile serves stdio JSON-RPC only.')
   })
 
   // Auto-start the initial profile. Selection order:

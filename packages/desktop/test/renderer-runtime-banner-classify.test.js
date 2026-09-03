@@ -90,18 +90,16 @@ test('Bug C: unknown shape still falls back to generic', () => {
 
 // ---- Default-profile-real (2026-07-18) --------------------------------------
 
-test('Default-profile-real: missing DEEPSEEK_API_KEY → dedicated bucket with switchTarget', () => {
-  // Exact line thrown by llm-deepseek/src/index.ts:57 — locking the raw
-  // shape here so a future adapter rename or reword can't silently strand
-  // this bucket back on the generic "Runtime warning".
+test('Default-profile-real: missing DEEPSEEK_API_KEY → dedicated bucket, no dead switch target', () => {
+  // Exact line thrown by llm-deepseek — locking the raw shape here so a
+  // future adapter rename or reword can't silently strand this bucket back
+  // on the generic "Runtime warning".
   const c = classify('llm-deepseek: an API key is required (Config.apiKey or $DEEPSEEK_API_KEY)')
   assert.equal(c.title, 'DEEPSEEK_API_KEY needed for real-model profile')
-  // stdio-echo, not daemon-echo (P0-3, 2026-07-18): daemon-demo isn't on
-  // deepseek-harness master, so pointing a fresh-clone user at daemon-echo
-  // would preflight-fail on the missing daemon bin. stdio-echo boots the
-  // jsonrpc-demo bin (present on master) and is keyless, so it works.
-  assert.equal(c.switchTarget, 'stdio-echo', 'switchTarget must offer a keyless profile that works on master')
-  assert.ok(c.switchLabel && /keyless/i.test(c.switchLabel), 'switchLabel should name the keyless demo')
+  // No switchTarget: the retired stdio-echo profile is disabled on the sdk
+  // runtime (no keyless route), so the one-click switch would fail loud.
+  // The card guides the user to .env / shell export instead.
+  assert.equal(c.switchTarget, undefined, 'switchTarget must not offer the disabled echo profile')
   // Not bootNoise — a first-run user without the key will hit this DURING
   // boot; if we marked it bootNoise=true they would never see the card
   // until re-initialize (which won't happen).

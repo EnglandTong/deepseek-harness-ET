@@ -105,7 +105,7 @@ test('narrowEnv drops non-allowlisted keys but keeps PATH + DEEPSEEK_API_KEY', (
   assert.equal('RANDOM_KEY' in env, false)
 })
 
-test('runScript executes a bash script + streams stdout + writes .last.json', async () => {
+test('runScript executes a bash script + streams stdout + writes .last.json', { skip: process.platform === 'win32' ? 'bash/git-bash is not guaranteed on Windows runners' : false }, async () => {
   const rt = mktemp()
   // A tiny shell script that copies input JSONL to output JSONL and emits
   // a summary line. Uses `bash` so this test runs on any macOS/linux CI.
@@ -147,7 +147,7 @@ test('runScript executes a bash script + streams stdout + writes .last.json', as
   assert.equal(meta.summary.written, 3)
 })
 
-test('runScript falls back to derived summary when stdout is silent', async () => {
+test('runScript falls back to derived summary when stdout is silent', { skip: process.platform === 'win32' ? 'bash/git-bash is not guaranteed on Windows runners' : false }, async () => {
   const rt = mktemp()
   const body = [
     '#!/usr/bin/env bash',

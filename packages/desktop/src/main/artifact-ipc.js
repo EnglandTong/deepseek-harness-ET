@@ -19,6 +19,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const { app, ipcMain, shell, BrowserWindow } = require('electron')
 const { ArtifactServer, isArtifactPath, pathToArtifactId } = require('./artifact-server.js')
+const { extractPathCandidates, extractBashCommand, extractBashTargetPaths, candidateRoots } = require('./artifact-extract.js')
 
 // Prefer an override so tests / advanced users can point the shell at a
 // working directory (e.g., a DSH session cwd) once we wire per-session dirs.
@@ -171,9 +172,13 @@ async function inspectSessionEvent(event) {
       abs = p
     } else {
       // Relative path — the model's cwd is opaque to us. Try a few well-known
-      // roots: the daemon cwd (via env), the artifact dir itself, and
-      // process.cwd(). First one that exists wins.
-      for (const root of candidateRoots()) {
+      // roots: the artifact dir, the sibling checkout, the workspace root,
+      // process.cwd(), and home. First one that exists wins.
+      for (const root of candidateRoots(__dirname, {
+        artifactDir: server && server.artifactDir,
+        cwd: process.cwd(),
+        homedir: require('node:os').homedir(),
+      })) {
         const trial = path.resolve(root, p)
         try {
           fs.accessSync(trial)
@@ -197,24 +202,6 @@ async function inspectSessionEvent(event) {
   }
 }
 
-// Roots we'll try when a tool/result carries a relative path. The daemon's
-// cwd is captured at spawn time in profiles.js (~/harness/deepseek-harness-dev
-// for stdio-* profiles); we can't peek at it from here, so we probe candidates.
-function candidateRoots() {
-  const roots = []
-  if (server && server.artifactDir) roots.push(server.artifactDir)
-  // dev clone (most common — stdio-deepseek runs there)
-  const devClone = path.resolve(__dirname, '..', '..', '..', 'deepseek-harness-dev')
-  roots.push(devClone)
-  // shell workspace root
-  roots.push(path.resolve(__dirname, '..', '..'))
-  // Electron process cwd
-  roots.push(process.cwd())
-  // home
-  roots.push(require('node:os').homedir())
-  return roots
-}
-
 // Copy a file into the artifact dir under its basename. Returns the new abs
 // path on success. Overwrite is intentional — the model updating "foo.svg"
 // twice in one turn should trigger a version bump on the same artifactId.
@@ -224,63 +211,6 @@ async function mirrorIntoArtifactDir(sourceAbs) {
   await fs.promises.mkdir(s.artifactDir, { recursive: true }).catch(() => {})
   await fs.promises.copyFile(sourceAbs, target)
   return target
-}
-
-// Pull the shell command string out of a bash tool/call. The wire ships
-// `arguments` either as a JSON string (jsonrpc-demo profile) or a decoded
-// object (some daemon paths). Both shapes carry `.command`.
-function extractBashCommand(data) {
-  let args = data && data.arguments
-  if (typeof args === 'string') { try { args = JSON.parse(args) } catch { return null } }
-  if (!args || typeof args !== 'object') return null
-  return typeof args.command === 'string' ? args.command : null
-}
-
-// From a bash command string, pluck any artifact-eligible target paths the
-// command is writing to. Recognises the four common write shapes:
-//   cat <<EOF > /path/foo.svg
-//   echo … > /path/foo.html
-//   printf … > /path/foo.md   (redirection form)
-//   tee /path/foo.svg <<EOF
-// We deliberately stay narrow: only extension-matching paths, only after a
-// write operator. Wildcards and pipelines aren't targeted — those write
-// through fs primitives we can't statically pull from a shell string.
-function extractBashTargetPaths(cmd) {
-  const paths = []
-  // Redirection targets: `> /path/foo.svg` or `>> /path/foo.html`
-  for (const m of cmd.matchAll(/>{1,2}\s*['"]?([^\s'";|&<>]+\.(?:html|svg|md))['"]?/gi)) {
-    paths.push(m[1])
-  }
-  // tee target
-  for (const m of cmd.matchAll(/\btee\s+(?:-a\s+)?['"]?([^\s'";|&<>]+\.(?:html|svg|md))['"]?/gi)) {
-    paths.push(m[1])
-  }
-  return paths
-}
-
-// Best-effort path extraction from a tool/result payload. Tool results carry
-// heterogeneous shapes across the codebase; we look at a small set of
-// well-known fields plus any text block that contains an artifact-like path.
-function extractPathCandidates(data) {
-  const out = []
-  const push = (v) => { if (typeof v === 'string' && v.length > 0) out.push(v) }
-  push(data && data.filePath)
-  push(data && data.path)
-  push(data && data.file)
-  push(data && data.meta && data.meta.filePath)
-  push(data && data.meta && data.meta.path)
-  if (Array.isArray(data.content)) {
-    for (const block of data.content) {
-      if (block && block.type === 'text' && typeof block.text === 'string') {
-        // Match anything that looks like a workspace file path ending in an
-        // artifact-eligible extension. Kept intentionally narrow so noisy
-        // tool output doesn't false-positive.
-        const m = block.text.match(/[\w./\\-]+\.(?:html|svg|md)\b/g)
-        if (m) for (const p of m) push(p)
-      }
-    }
-  }
-  return out
 }
 
 // Public: point the server at a different dir before it starts. Called from

@@ -1,7 +1,9 @@
-# Bundled-standalone deepseek leaf for the packaged desktop app. Loaded by
-# the single-file runtime exe (its pkg VFS carries every bare name below),
-# so no checkout, tsx, or system Node participates. Needs DEEPSEEK_API_KEY
-# in the shell environment (the desktop shell passes it through on spawn).
+# LEGACY leaf (alpha.4 anchoring): the bundled runtime launches
+# `dsh --profile sdk` and composes from its bundled bundle layers
+# ($DSH_BUNDLED_RUNTIME_DIR/config), so this file is no longer loaded by the
+# packaged app's runtime. Kept as the Plugins tab's legacy leaf view for the
+# stdio-deepseek profile. Composition reference:
+# packages/bundle/sdk-minimal/cordis.yml.
 
 # Stdio JSON-RPC serving surface.
 - id: sdk-jsonrpc-server

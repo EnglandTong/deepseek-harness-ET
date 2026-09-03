@@ -1,9 +1,15 @@
+# LEGACY leaf (alpha.4 anchoring): the sdk profile composes from
+# $DSH_HOME/profiles/sdk bundle layers and takes no leaf argv, so the runtime
+# never loads this file directly. It remains as the Plugins tab's legacy leaf
+# view (fs-parse, static validation, boot history) for the stdio-vibe-deepseek
+# profile.
+#
 # Vibe leaf, DeepSeek variant: the real DeepSeek adapter plus the cordis
-# self-modification tools, booted by the jsonrpc-demo bin on stdio. Needs
-# `DEEPSEEK_API_KEY` in the shell environment or `.env` at the DSH runtime
-# root. Composition mirrors examples/jsonrpc-agent/cordis.yml with a
-# workspace overview enabled (the model gets workspace context so it can
-# write a plugin that extends its own runtime) and the cordis tool mounted.
+# self-modification tools on stdio. Needs `DEEPSEEK_API_KEY` in the shell
+# environment or `.env` at the DSH runtime root. Composition mirrors
+# packages/bundle/sdk-minimal/cordis.yml with a workspace overview enabled
+# (the model gets workspace context so it can write a plugin that extends its
+# own runtime) and the cordis tool mounted.
 
 # Stdio JSON-RPC serving surface.
 - id: sdk-jsonrpc-server
