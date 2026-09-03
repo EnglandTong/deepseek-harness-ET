@@ -38,7 +38,7 @@ function probeExecutor(): (request: unknown) => Promise<unknown> {
   return vi.fn(async () => ({
     childSessionId: 'probe-child' as never,
     lease: { cancel: vi.fn(async () => undefined) },
-    result: Promise.resolve({ status: 'completed', output: [] } satisfies SupervisorExecutionResult),
+    result: Promise.resolve({ status: 'completed', output: [], timedOut: false } satisfies SupervisorExecutionResult),
     cancel: vi.fn(async () => undefined),
   }))
 }
