@@ -2,7 +2,8 @@
 
 /**
  * Thin product desktop: spawn `dsh web --no-open`, wait for its printed URL,
- * open that URL in a BrowserWindow. No Studio UI.
+ * open that URL in a BrowserWindow. Packaged builds use the bundled
+ * sdk-runtime exe; checkout `pnpm start` falls back to system Node + apps/cli.
  */
 
 const { app, BrowserWindow, dialog } = require('electron')
@@ -13,6 +14,7 @@ const http = require('node:http')
 
 const repoRoot = path.resolve(__dirname, '..', '..')
 const cliBin = path.join(repoRoot, 'apps', 'cli', 'lib', 'bin.js')
+const RUNTIME_EXE = 'deepseek-harness-sdk-runtime-win-x64.exe'
 const WEB_URL_RE = /dsh web:\s*(https?:\/\/\S+)/i
 
 /** @type {import('node:child_process').ChildProcess | null} */
@@ -84,18 +86,61 @@ async function waitUntilReachable(url, timeoutMs) {
   throw new Error(`URL not reachable: ${url}`)
 }
 
-function startWeb() {
+function bundledRuntimePath() {
+  return path.join(process.resourcesPath, 'runtime', RUNTIME_EXE)
+}
+
+function checkoutRuntimePath() {
+  return path.join(__dirname, 'resources', 'runtime', RUNTIME_EXE)
+}
+
+function resolveLaunch() {
+  if (app.isPackaged) {
+    const exe = bundledRuntimePath()
+    if (!fs.existsSync(exe)) {
+      throw new Error(`Missing bundled runtime: ${exe}`)
+    }
+    return { command: exe, args: ['web', '--no-open'], cwd: path.dirname(exe) }
+  }
+
+  const localExe = checkoutRuntimePath()
+  if (fs.existsSync(localExe)) {
+    return { command: localExe, args: ['web', '--no-open'], cwd: path.dirname(localExe) }
+  }
+
   if (!fs.existsSync(cliBin)) {
     throw new Error(
-      `Missing ${cliBin}. From the repo root run: pnpm install && pnpm run build`,
+      `Missing ${cliBin}. From the repo root run: pnpm install && pnpm run build` +
+        `\nOr stage a runtime: pnpm run sync-runtime`,
     )
   }
   // Electron's embedded Node (20.x) is too old for the runtime; spawn the
   // system Node (>= 22.19, the repo engines) or a DSH_RUNTIME_NODE override.
   const nodeBin = process.env.DSH_RUNTIME_NODE || 'node'
-  const child = spawn(nodeBin, [cliBin, 'web', '--no-open'], {
-    cwd: repoRoot,
-    env: process.env,
+  return { command: nodeBin, args: [cliBin, 'web', '--no-open'], cwd: repoRoot }
+}
+
+function ensureDshHome() {
+  if (process.env.DSH_HOME && process.env.DSH_HOME.trim() !== '') {
+    return process.env.DSH_HOME
+  }
+  // Same default as the CLI (`~/.dsh`) so a packaged shell reuses profiles
+  // and credentials already created by `dsh web` / prior runs.
+  const home = path.join(app.getPath('home'), '.dsh')
+  fs.mkdirSync(home, { recursive: true })
+  return home
+}
+
+function startWeb() {
+  const launch = resolveLaunch()
+  const dshHome = ensureDshHome()
+  const env = {
+    ...process.env,
+    DSH_HOME: dshHome,
+  }
+  const child = spawn(launch.command, launch.args, {
+    cwd: launch.cwd,
+    env,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   })
@@ -135,7 +180,7 @@ function stopWeb() {
       webChild.kill('SIGTERM')
     }
   } catch {
-    // best-effort
+    // best-effort process-tree teardown on quit
   }
   webChild = null
 }
@@ -151,7 +196,8 @@ app.whenReady().then(async () => {
     fail(
       'Could not open DSH Web',
       `${err instanceof Error ? err.message : String(err)}\n\n` +
-        'Check: repo root `pnpm install` + `pnpm run build`, and DEEPSEEK_API_KEY in `.env` or the environment.',
+        'Packaged: ensure the portable was built with `pnpm run dist:portable`.\n' +
+        'Checkout: `pnpm install` + `pnpm run build`, optional `pnpm run sync-runtime`, and DEEPSEEK_API_KEY in the environment or `$DSH_HOME/.env`.',
     )
   }
 })
