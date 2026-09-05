@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-05-desktop-local-edge-input-optimize.md
+2026-09-05-desktop-local-edge-input-optimize.md: 54059efeb3f0b2365c8f3ed0d00ddf0be3e4399d
+2026-09-05-desktop-local-edge-input-optimize.zh.md: 48d1ce9f2521f30c27f531929cb9c3e25417edcd

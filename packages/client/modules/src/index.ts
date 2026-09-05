@@ -233,6 +233,19 @@ function clientExportOf(pkgName: string, exportsField: unknown): string | undefi
   throw new Error(`client-modules: ${pkgName} exports["./client"] must be a string or an object with a string default`)
 }
 
+/**
+ * Read `dsh.moduleFallback.targets["./client"]` when the Loader resolved a
+ * SEA/install proxy package that re-exports the real client artifact by URL.
+ */
+function moduleFallbackClientUrl(dsh: Record<string, unknown> | undefined): string | undefined {
+  const fallback = dsh?.moduleFallback
+  if (fallback === null || typeof fallback !== 'object') return undefined
+  const targets = (fallback as { targets?: unknown }).targets
+  if (targets === null || typeof targets !== 'object') return undefined
+  const client = (targets as Record<string, unknown>)['./client']
+  return typeof client === 'string' && client.startsWith('file:') ? client : undefined
+}
+
 /** sha1 content hash shortened to 12 hex chars (combo / graph / rebuilt-artifact rev). */
 function shortHash(input: string | Buffer): string {
   return createHash('sha1').update(input).digest('hex').slice(0, HASH_REVISION_LENGTH)
@@ -748,21 +761,39 @@ export class ClientModuleRegistry extends Service {
     }
     const { packageName, path: pkgPath } = located
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as Record<string, unknown>
-    const dsh = pkg.dsh
-    const decl = parseDshClient(
-      packageName,
-      dsh !== null && typeof dsh === 'object' ? (dsh as Record<string, unknown>).client : undefined,
-    )
+    const dsh = pkg.dsh !== null && typeof pkg.dsh === 'object'
+      ? pkg.dsh as Record<string, unknown>
+      : undefined
+    // SEA / install moduleFallback proxies re-export host code through entry
+    // stubs and omit `dsh.client`. The browser bundle and the client
+    // declaration live at the fallback target URL inside the installation.
+    const fallbackClientUrl = moduleFallbackClientUrl(dsh)
+    let declPkg = pkg
+    let clientPath: string | undefined
+    if (fallbackClientUrl !== undefined) {
+      clientPath = fileURLToPath(fallbackClientUrl)
+      const realLocated = this.nearestPackage(fallbackClientUrl, packageName)
+      if (realLocated !== undefined) {
+        declPkg = JSON.parse(readFileSync(realLocated.path, 'utf8')) as Record<string, unknown>
+      }
+    }
+    const declDsh = declPkg.dsh !== null && typeof declPkg.dsh === 'object'
+      ? declPkg.dsh as Record<string, unknown>
+      : undefined
+    const decl = parseDshClient(packageName, declDsh?.client)
     if (decl === undefined || decl.platform !== 'web') {
       this.pkgMeta.set(sourceKey, null)
       return null
     }
-    const clientRel = clientExportOf(packageName, pkg.exports)
-    if (clientRel === undefined) {
-      throw new Error(`client-modules: ${packageName} declares dsh.client but exports no "./client" bundle`)
+    if (clientPath === undefined) {
+      const clientRel = clientExportOf(packageName, pkg.exports)
+      if (clientRel === undefined) {
+        throw new Error(`client-modules: ${packageName} declares dsh.client but exports no "./client" bundle`)
+      }
+      clientPath = join(dirname(pkgPath), clientRel)
     }
     const meta: PkgMeta = {
-      clientPath: join(dirname(pkgPath), clientRel),
+      clientPath,
       ...(decl.inject !== undefined ? { inject: decl.inject } : {}),
       external: decl.external ?? [],
       immediately: decl.immediately === true,

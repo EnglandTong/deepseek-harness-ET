@@ -91,6 +91,12 @@
     - id: plugin-import
       name: '@deepseek-ai/dsh-host-plugin-import'
 
+    # Composer draft optimize + optional local STT (dormant until --patch / config).
+    - id: input-optimize
+      name: '@deepseek-ai/dsh-host-input-optimize'
+      config:
+        enabled: false
+
     # Session commands, cold reads, and live control over Typert Remote.
     - id: session-controller
       name: '@deepseek-ai/dsh-api-session-controller'
@@ -210,6 +216,9 @@
 
     - id: ui-settings-plugin-import
       name: '@deepseek-ai/dsh-client-ui-settings-plugin-import'
+
+    - id: ui-input-optimize
+      name: '@deepseek-ai/dsh-client-ui-input-optimize'
 
     - id: ui-conversation
       name: '@deepseek-ai/dsh-client-ui-conversation'

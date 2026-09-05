@@ -18,13 +18,24 @@ Electron「Harness Studio」壳，作为协议参考宿主，带大量观测与�
 并把打印出的 URL 载入 BrowserWindow。** 不重做聊天、工作区、设置或插件导入——
 这些仍属于 web profile。仓库中的 Studio 树 `packages/desktop` 已删除。
 
-**打包的 Windows 构建内嵌 sdk-runtime win-x64 exe**（及 ripgrep sidecar）于
-`resources/runtime/`，经 `pnpm run sync-runtime` / `dist:portable` 从
-`dist-exe/` 同步。便携产物为 `DSH-Desktop-Portable-<version>.exe`
-（仅 electron-builder portable；NSIS 延后）。打包启动时若环境未提供
-`DSH_HOME`，则使用 `~/.dsh`（与 CLI 默认相同），以便与普通 `dsh web` 共享
-profile 与凭据。checkout 下的 `pnpm start` 在未暂存 runtime 时仍回退到系统
-Node + `apps/cli/lib/bin.js`。
+**产品打包顺序：先稳住薄壳 → NSIS 安装包（主路径）→ 可选安装时 / 首次启动
+引导插件 → Portable 最后。** 打包的 Windows 构建在 `resources/runtime/` 内嵌
+sdk-runtime win-x64 exe（及 ripgrep sidecar），在 `resources/tools/` 暂存
+`pnpm.exe`，带上 `resources/bootstrap/` 引导清单，并带上 `resources/sidecar/`
+local-edge 配置（引擎与权重不进入默认 NSIS 包）。经
+`pnpm run sync-pack` / `dist:installer` 同步。Setup 产物为
+`DSH-Desktop-Setup-<version>.exe`（NSIS：可选安装目录、开始菜单与桌面快捷方式；
+目录页离开时自动追加产品文件夹名）。打包启动时将内嵌 `pnpm` 前置到 `PATH`。
+首次打包启动时，若缺少 web profile 依赖则先跑
+`dsh plugin --profile web install`，再按需执行 bootstrap 插件；在 `dsh web`
+之前可选启动或复用 OpenAI 兼容的 local-edge sidecar，健康时通过 `--patch`
+挂上 `local-edge` 路由、compaction 摘要钉选与 input-optimize（否则软失败）。
+启动即显示 splash，避免长时间空白。若环境未提供 `DSH_HOME`，则使用 `~/.dsh`。
+checkout 下的 `pnpm start` 在未暂存 runtime 时仍回退到系统 Node +
+`apps/cli/lib/bin.js`。`dist:portable` 仍可用于冒烟，但不是产品分发主路径。
+安装版 SEA 下的 web 依赖 client-modules 跟随 `moduleFallback`，否则
+`__DSH_BOOT__` 会为空。local-edge 细节见
+[2026-09-05-desktop-local-edge-input-optimize.zh.md](./2026-09-05-desktop-local-edge-input-optimize.zh.md)。
 
 ## 备选方案
 
@@ -34,16 +45,17 @@ Node + `apps/cli/lib/bin.js`。
   独立窗口，而不要求用户自己管理浏览器标签。
 - **只打薄壳、不内嵌 runtime。** 否决为分发路径：双击仍需要 checkout 与系统
   Node。
-- **同变更打 NSIS 安装包。** 延后：portable 足以验证内嵌 runtime；安装包可复用
-  同一套 `extraResources`。
+- **以 Portable 为主要产物。** 否决为产品路径：用户需要可选安装目录、快捷方式，
+  以及暂存宿主工具 / 首次引导插件的位置；NSIS 是主分发形态，Portable 仅保留为
+  次要冒烟目标。
 
 ## 影响
 
 贡献者在常规仓库构建并设置 `DEEPSEEK_API_KEY` 后执行
 `cd apps/desktop && pnpm start`，或在构建
-`deepseek-harness-sdk-runtime-win-x64.exe` 后执行 `pnpm run dist:portable`。
+`deepseek-harness-sdk-runtime-win-x64.exe` 后执行 `pnpm run dist:installer`。
 根目录 `pnpm-workspace.yaml` 允许 Electron 的 postinstall
 （`allowBuilds.electron: true`）。Import Plugin 仍走 Web 设置与
 `@deepseek-ai/dsh-host-plugin-import`。此前的 Studio 迁移笔记已并入本文并删除；
-若再引入 Studio 式宿主需新决策。`resources/runtime/` 与 `dist/` 为 gitignore
-的构建产物。
+若再引入 Studio 式宿主需新决策。`resources/runtime/`、`resources/tools/` 与
+`dist/` 为 gitignore 的构建产物。

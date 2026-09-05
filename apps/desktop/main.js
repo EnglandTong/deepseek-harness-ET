@@ -3,25 +3,48 @@
 /**
  * Thin product desktop: spawn `dsh web --no-open`, wait for its printed URL,
  * open that URL in a BrowserWindow. Packaged builds use the bundled
- * sdk-runtime exe; checkout `pnpm start` falls back to system Node + apps/cli.
+ * sdk-runtime exe and prepend bundled pnpm to PATH for plugin import.
+ * Checkout `pnpm start` falls back to system Node + apps/cli when no staged
+ * runtime is present. Optionally starts a local OpenAI-compatible sidecar and
+ * passes `--patch` when that helper is healthy (soft-fail otherwise).
  */
 
 const { app, BrowserWindow, dialog } = require('electron')
-const { spawn } = require('node:child_process')
+const { spawn, spawnSync } = require('node:child_process')
 const path = require('node:path')
 const fs = require('node:fs')
 const http = require('node:http')
+const {
+  prepareDesktopHelper,
+  stopLocalEdgeSidecar,
+  clearHelperPatch,
+} = require('./sidecar.js')
 
 const repoRoot = path.resolve(__dirname, '..', '..')
 const cliBin = path.join(repoRoot, 'apps', 'cli', 'lib', 'bin.js')
 const RUNTIME_EXE = 'deepseek-harness-sdk-runtime-win-x64.exe'
 const WEB_URL_RE = /dsh web:\s*(https?:\/\/\S+)/i
+const BOOTSTRAP_MARKER = 'desktop-bootstrap-plugins.done'
 
 /** @type {import('node:child_process').ChildProcess | null} */
 let webChild = null
 /** @type {BrowserWindow | null} */
 let mainWindow = null
 let quitting = false
+/** @type {string | null} */
+let helperPatchPath = null
+
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
 
 function fail(title, message) {
   dialog.showErrorBox(title, message)
@@ -86,26 +109,39 @@ async function waitUntilReachable(url, timeoutMs) {
   throw new Error(`URL not reachable: ${url}`)
 }
 
+function resourcesRoot() {
+  return app.isPackaged ? process.resourcesPath : path.join(__dirname, 'resources')
+}
+
 function bundledRuntimePath() {
-  return path.join(process.resourcesPath, 'runtime', RUNTIME_EXE)
+  return path.join(resourcesRoot(), 'runtime', RUNTIME_EXE)
 }
 
 function checkoutRuntimePath() {
   return path.join(__dirname, 'resources', 'runtime', RUNTIME_EXE)
 }
 
-function resolveLaunch() {
+function bundledPnpmDir() {
+  return path.join(resourcesRoot(), 'tools')
+}
+
+/**
+ * @param {string | null} patchPath
+ * @returns {{ command: string, args: string[], cwd: string }}
+ */
+function resolveLaunch(patchPath) {
+  const patchArgs = patchPath ? ['--patch', patchPath] : []
   if (app.isPackaged) {
     const exe = bundledRuntimePath()
     if (!fs.existsSync(exe)) {
       throw new Error(`Missing bundled runtime: ${exe}`)
     }
-    return { command: exe, args: ['web', '--no-open'], cwd: path.dirname(exe) }
+    return { command: exe, args: ['web', '--no-open', ...patchArgs], cwd: path.dirname(exe) }
   }
 
   const localExe = checkoutRuntimePath()
   if (fs.existsSync(localExe)) {
-    return { command: localExe, args: ['web', '--no-open'], cwd: path.dirname(localExe) }
+    return { command: localExe, args: ['web', '--no-open', ...patchArgs], cwd: path.dirname(localExe) }
   }
 
   if (!fs.existsSync(cliBin)) {
@@ -114,33 +150,46 @@ function resolveLaunch() {
         `\nOr stage a runtime: pnpm run sync-runtime`,
     )
   }
-  // Electron's embedded Node (20.x) is too old for the runtime; spawn the
-  // system Node (>= 22.19, the repo engines) or a DSH_RUNTIME_NODE override.
   const nodeBin = process.env.DSH_RUNTIME_NODE || 'node'
-  return { command: nodeBin, args: [cliBin, 'web', '--no-open'], cwd: repoRoot }
+  return { command: nodeBin, args: [cliBin, 'web', '--no-open', ...patchArgs], cwd: repoRoot }
 }
 
 function ensureDshHome() {
   if (process.env.DSH_HOME && process.env.DSH_HOME.trim() !== '') {
     return process.env.DSH_HOME
   }
-  // Same default as the CLI (`~/.dsh`) so a packaged shell reuses profiles
-  // and credentials already created by `dsh web` / prior runs.
   const home = path.join(app.getPath('home'), '.dsh')
   fs.mkdirSync(home, { recursive: true })
   return home
 }
 
-function startWeb() {
-  const launch = resolveLaunch()
-  const dshHome = ensureDshHome()
+/**
+ * @param {string} dshHome
+ * @param {Record<string, string>} [extraEnv]
+ */
+function buildChildEnv(dshHome, extraEnv) {
   const env = {
     ...process.env,
     DSH_HOME: dshHome,
+    ...(extraEnv ?? {}),
   }
+  const tools = bundledPnpmDir()
+  const pnpmExe = path.join(tools, 'pnpm.exe')
+  if (fs.existsSync(pnpmExe)) {
+    env.PATH = `${tools}${path.delimiter}${env.PATH || ''}`
+  }
+  return env
+}
+
+/**
+ * @param {{ patchPath: string | null, extraEnv?: Record<string, string> }} options
+ */
+function startWeb(options) {
+  const launch = resolveLaunch(options.patchPath)
+  const dshHome = ensureDshHome()
   const child = spawn(launch.command, launch.args, {
     cwd: launch.cwd,
-    env,
+    env: buildChildEnv(dshHome, options.extraEnv),
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   })
@@ -148,24 +197,6 @@ function startWeb() {
     if (!quitting) fail('Failed to start dsh web', err.message)
   })
   return child
-}
-
-function createWindow(url) {
-  const win = new BrowserWindow({
-    width: 1280,
-    height: 840,
-    title: 'DSH',
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
-  win.loadURL(url)
-  win.on('closed', () => {
-    mainWindow = null
-    if (!quitting) app.quit()
-  })
-  return win
 }
 
 function stopWeb() {
@@ -185,28 +216,262 @@ function stopWeb() {
   webChild = null
 }
 
-app.whenReady().then(async () => {
+function resolveRuntimeCommand() {
+  if (app.isPackaged) return bundledRuntimePath()
+  const local = checkoutRuntimePath()
+  if (fs.existsSync(local)) return local
+  return null
+}
+
+/**
+ * First packaged launch: install optional bootstrap plugin specs into the web
+ * profile via the bundled runtime + bundled pnpm.
+ */
+function runBootstrapPlugins() {
+  if (!app.isPackaged) return
+  const dshHome = ensureDshHome()
+  const marker = path.join(dshHome, BOOTSTRAP_MARKER)
+  if (fs.existsSync(marker)) return
+
+  const manifestPath = path.join(resourcesRoot(), 'bootstrap', 'plugins.json')
+  if (!fs.existsSync(manifestPath)) {
+    fs.writeFileSync(marker, `${new Date().toISOString()}\nskip: missing manifest\n`)
+    return
+  }
+
+  let specs = []
   try {
-    webChild = startWeb()
-    const url = await waitForUrl(webChild, 120_000)
-    await waitUntilReachable(url, 30_000)
-    mainWindow = createWindow(url)
+    const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+    specs = Array.isArray(raw.plugins) ? raw.plugins.filter((s) => typeof s === 'string' && s.trim()) : []
   } catch (err) {
-    stopWeb()
-    fail(
-      'Could not open DSH Web',
-      `${err instanceof Error ? err.message : String(err)}\n\n` +
-        'Packaged: ensure the portable was built with `pnpm run dist:portable`.\n' +
-        'Checkout: `pnpm install` + `pnpm run build`, optional `pnpm run sync-runtime`, and DEEPSEEK_API_KEY in the environment or `$DSH_HOME/.env`.',
+    fs.writeFileSync(
+      marker,
+      `${new Date().toISOString()}\nerror: ${err instanceof Error ? err.message : String(err)}\n`,
+    )
+    return
+  }
+
+  if (specs.length === 0) {
+    fs.writeFileSync(marker, `${new Date().toISOString()}\nskip: empty plugins list\n`)
+    return
+  }
+
+  const runtime = resolveRuntimeCommand()
+  const pnpmExe = path.join(bundledPnpmDir(), 'pnpm.exe')
+  if (!runtime || !fs.existsSync(runtime)) {
+    fs.writeFileSync(marker, `${new Date().toISOString()}\nerror: missing runtime for bootstrap\n`)
+    return
+  }
+  if (!fs.existsSync(pnpmExe)) {
+    fs.writeFileSync(marker, `${new Date().toISOString()}\nerror: missing bundled pnpm.exe\n`)
+    return
+  }
+
+  const lines = [`${new Date().toISOString()}`, `runtime=${runtime}`, `pnpm=${pnpmExe}`]
+  for (const spec of specs) {
+    const result = spawnSync(runtime, ['plugin', '--profile', 'web', 'add', spec], {
+      env: buildChildEnv(dshHome),
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 600_000,
+    })
+    lines.push(
+      `--- add ${spec} exit=${result.status}`,
+      String(result.stdout || '').trim(),
+      String(result.stderr || '').trim(),
     )
   }
-})
+  fs.writeFileSync(marker, `${lines.join('\n')}\n`)
+}
 
-app.on('before-quit', () => {
-  quitting = true
-  stopWeb()
-})
+function createWindow(url) {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 840,
+    title: 'DSH Desktop',
+    show: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+  win.loadURL(url)
+  win.on('closed', () => {
+    mainWindow = null
+    if (!quitting) app.quit()
+  })
+  return win
+}
 
-app.on('window-all-closed', () => {
-  app.quit()
-})
+function showSplash(message) {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 840,
+    title: 'DSH Desktop',
+    show: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+  const body = String(message)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  win.loadURL(
+    'data:text/html;charset=utf-8,' +
+      encodeURIComponent(
+        `<!doctype html><html><head><meta charset="utf-8"><title>DSH Desktop</title>
+<style>
+html,body{height:100%;margin:0;font-family:Segoe UI,sans-serif;background:#0f1419;color:#e7ecf1}
+main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+h1{font-size:20px;font-weight:600;margin:0;letter-spacing:0.04em}
+p{margin:0;opacity:0.75;max-width:36rem;line-height:1.45}
+</style></head><body><main><h1>DSH Desktop</h1><p>${body}</p></main></body></html>`,
+      ),
+  )
+  win.on('closed', () => {
+    mainWindow = null
+    if (!quitting) app.quit()
+  })
+  return win
+}
+
+/**
+ * Fresh DSH_HOME needs `dsh plugin --profile web install` before `dsh web`
+ * can resolve profile bundles. Packaged launches run that once when the web
+ * profile directory has not been initialized. Bundle packages themselves come
+ * from the bundled runtime installation, not from profile node_modules.
+ */
+function ensureWebProfile(dshHome) {
+  if (!app.isPackaged) return
+  const webManifest = path.join(dshHome, 'profiles', 'web', 'package.json')
+  if (fs.existsSync(webManifest)) return
+
+  const runtime = resolveRuntimeCommand()
+  if (!runtime || !fs.existsSync(runtime)) {
+    throw new Error('Missing bundled runtime for web profile install')
+  }
+  if (mainWindow) {
+    mainWindow.loadURL(
+      'data:text/html;charset=utf-8,' +
+        encodeURIComponent(
+          `<!doctype html><html><head><meta charset="utf-8"><title>DSH Desktop</title>
+<style>html,body{height:100%;margin:0;font-family:Segoe UI,sans-serif;background:#0f1419;color:#e7ecf1}
+main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+h1{font-size:20px;font-weight:600;margin:0}p{margin:0;opacity:0.75;max-width:36rem;line-height:1.45}</style>
+</head><body><main><h1>DSH Desktop</h1><p>First launch: installing the web profile (this can take a few minutes)…</p></main></body></html>`,
+        ),
+    )
+  }
+  const result = spawnSync(runtime, ['plugin', '--profile', 'web', 'install'], {
+    env: buildChildEnv(dshHome),
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 900_000,
+  })
+  if (result.status !== 0) {
+    throw new Error(
+      `web profile install failed (exit ${result.status}):\n` +
+        `${String(result.stderr || result.stdout || '').trim() || 'no output'}`,
+    )
+  }
+}
+
+if (gotLock) {
+  app.whenReady().then(async () => {
+    try {
+      mainWindow = showSplash('Starting DSH Web…')
+      const dshHome = ensureDshHome()
+      try {
+        ensureWebProfile(dshHome)
+      } catch (profileErr) {
+        throw new Error(
+          `Could not prepare the web profile: ${
+            profileErr instanceof Error ? profileErr.message : String(profileErr)
+          }`,
+        )
+      }
+      try {
+        runBootstrapPlugins()
+      } catch (bootErr) {
+        process.stderr.write(
+          `bootstrap plugins: ${bootErr instanceof Error ? bootErr.message : String(bootErr)}\n`,
+        )
+      }
+      if (mainWindow) {
+        mainWindow.loadURL(
+          'data:text/html;charset=utf-8,' +
+            encodeURIComponent(
+              `<!doctype html><html><head><meta charset="utf-8"><title>DSH Desktop</title>
+<style>html,body{height:100%;margin:0;font-family:Segoe UI,sans-serif;background:#0f1419;color:#e7ecf1}
+main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+h1{font-size:20px;font-weight:600;margin:0}p{margin:0;opacity:0.75;max-width:36rem;line-height:1.45}</style>
+</head><body><main><h1>DSH Desktop</h1><p>Preparing helper mode (optional)…</p></main></body></html>`,
+            ),
+        )
+      }
+      let sidecarEnv = /** @type {Record<string, string>} */ ({})
+      try {
+        const helper = await prepareDesktopHelper({
+          resourcesRoot: resourcesRoot(),
+          dshHome,
+        })
+        helperPatchPath = helper.patchPath
+        sidecarEnv = helper.env
+        if (!helper.ready) {
+          process.stderr.write(
+            `desktop helper: mode=${helper.mode}; unavailable (${helper.reason ?? 'unknown'}); continuing without helper patch\n`,
+          )
+        } else {
+          process.stderr.write(`desktop helper: mode=${helper.mode}; patch ready\n`)
+        }
+      } catch (sidecarErr) {
+        clearHelperPatch(dshHome)
+        helperPatchPath = null
+        process.stderr.write(
+          `desktop helper: ${sidecarErr instanceof Error ? sidecarErr.message : String(sidecarErr)}\n`,
+        )
+      }
+      if (mainWindow) {
+        mainWindow.loadURL(
+          'data:text/html;charset=utf-8,' +
+            encodeURIComponent(
+              `<!doctype html><html><head><meta charset="utf-8"><title>DSH Desktop</title>
+<style>html,body{height:100%;margin:0;font-family:Segoe UI,sans-serif;background:#0f1419;color:#e7ecf1}
+main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center}
+h1{font-size:20px;font-weight:600;margin:0}p{margin:0;opacity:0.75;max-width:36rem;line-height:1.45}</style>
+</head><body><main><h1>DSH Desktop</h1><p>Starting DSH Web…</p></main></body></html>`,
+            ),
+        )
+      }
+      webChild = startWeb({ patchPath: helperPatchPath, extraEnv: sidecarEnv })
+      const url = await waitForUrl(webChild, 180_000)
+      await waitUntilReachable(url, 60_000)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        await mainWindow.loadURL(url)
+      } else {
+        mainWindow = createWindow(url)
+      }
+    } catch (err) {
+      stopWeb()
+      stopLocalEdgeSidecar()
+      fail(
+        'Could not open DSH Web',
+        `${err instanceof Error ? err.message : String(err)}\n\n` +
+          'Installed build: reinstall with `pnpm run dist:installer`, or check `%USERPROFILE%\\.dsh`.\n' +
+          'Checkout: `pnpm install` + `pnpm run build`, optional `pnpm run sync-pack`, and DEEPSEEK_API_KEY in the environment or `%USERPROFILE%\\.dsh\\.env`.',
+      )
+    }
+  })
+
+  app.on('before-quit', () => {
+    quitting = true
+    stopWeb()
+    stopLocalEdgeSidecar()
+  })
+
+  app.on('window-all-closed', () => {
+    app.quit()
+  })
+}

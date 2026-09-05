@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-03-web-thin-desktop-shell.md
-2026-09-03-web-thin-desktop-shell.md: 01ab67962e41593bd50cc964ce5d6025b180ea6d
-2026-09-03-web-thin-desktop-shell.zh.md: 80c92632a963ee8f0af52348d4a492c7ddcdf9b3
+2026-09-03-web-thin-desktop-shell.md: 288f10c56ecebf8767f0a97768694724d89b4d52
+2026-09-03-web-thin-desktop-shell.zh.md: 6644454c75c9ace2b36d3c55010561c45cfb71ae

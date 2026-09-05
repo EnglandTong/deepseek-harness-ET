@@ -1,0 +1,41 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--dsw-alias-text-primary);
+  background: var(--dsw-alias-fill-subtle);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.recording {
+  color: var(--dsw-alias-text-warn, #c45c26);
+}
+
+.status {
+  font-size: 11px;
+  color: var(--dsw-alias-text-tertiary);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "host": "127.0.0.1",
+  "port": 8765,
+  "model": "local-default",
+  "healthPath": "/v1/models",
+  "bin": null,
+  "modelPath": null,
+  "args": []
+}
