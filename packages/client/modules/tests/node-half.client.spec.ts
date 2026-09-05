@@ -313,7 +313,7 @@ describe('client bundle activation', () => {
     const resolveSync = () => ({ format: 'module' as const, url: pathToFileURL(proxyHostPath).href })
     const { service } = constructWithRoute([packageName], {
       entryBaseUrl,
-      internal: { version: 'v2', resolveSync } as NonNullable<Context['loader']['internal']>,
+      internal: { version: 'v2', resolveSync } as unknown as NonNullable<Context['loader']['internal']>,
     })
 
     expect(service.clientPath(packageName)).toBe(realClientPath)
