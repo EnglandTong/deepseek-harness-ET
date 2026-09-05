@@ -9,6 +9,11 @@ export interface PluginImportSettingsTabInjected {
   listBundles: () => Promise<BundleListSnapshot>
   /** Install one spec into the profile and hot-apply the new layers. */
   importSpec: (spec: string) => Promise<ImportReport>
+  /**
+   * Open a host directory picker and return the chosen absolute path, or
+   * `null` when the user cancels.
+   */
+  browseLocalPath: () => Promise<string | null>
 }
 
 /** Full component props assembled by the Settings slot renderer. */
@@ -26,10 +31,16 @@ type ViewState =
  * Render the plugin import tab: an install form, the last install report,
  * and the profile's current bundle layer list.
  */
-export function PluginImportTab({ listBundles, importSpec, t }: PluginImportSettingsTabProps): ReactNode {
+export function PluginImportTab({
+  listBundles,
+  importSpec,
+  browseLocalPath,
+  t,
+}: PluginImportSettingsTabProps): ReactNode {
   const [request, setRequest] = useState(0)
   const [spec, setSpec] = useState('')
   const [busy, setBusy] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
   const [validation, setValidation] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [report, setReport] = useState<ImportReport | null>(null)
@@ -66,7 +77,24 @@ export function PluginImportTab({ listBundles, importSpec, t }: PluginImportSett
     )
   }
 
+  const browse = (): void => {
+    setValidation(null)
+    setSubmitError(null)
+    setBrowsing(true)
+    void browseLocalPath().then(
+      (path) => {
+        setBrowsing(false)
+        if (path !== null) setSpec(path)
+      },
+      (error: unknown) => {
+        setBrowsing(false)
+        setSubmitError(error instanceof Error ? error.message : String(error))
+      },
+    )
+  }
+
   const snapshot = state.status === 'ready' ? state.snapshot : undefined
+  const formLocked = busy || browsing
 
   return (
     <div className={css.section}>
@@ -74,17 +102,31 @@ export function PluginImportTab({ listBundles, importSpec, t }: PluginImportSett
         <p className={css.hint}>{t('profileHint', { name: snapshot.profileName })}</p>
       ) : null}
       <form className={css.form} onSubmit={(event) => { event.preventDefault(); submit() }}>
-        <label className={css.field}>
+        <label className={css.field} htmlFor="plugin-import-spec">
           <span>{t('specLabel')}</span>
-          <input
-            type="text"
-            value={spec}
-            placeholder={t('specPlaceholder')}
-            disabled={busy}
-            onChange={(event) => { setSpec(event.currentTarget.value) }}
-          />
+          <span className={css.fieldHint}>{t('specHint')}</span>
+          <div className={css.specRow}>
+            <input
+              id="plugin-import-spec"
+              type="text"
+              value={spec}
+              placeholder={t('specPlaceholder')}
+              disabled={formLocked}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(event) => { setSpec(event.currentTarget.value) }}
+            />
+            <button
+              type="button"
+              className={css.browse}
+              disabled={formLocked}
+              onClick={browse}
+            >
+              {browsing ? t('browsing') : t('browseAction')}
+            </button>
+          </div>
         </label>
-        <button type="submit" className={css.action} disabled={busy}>
+        <button type="submit" className={css.importAction} disabled={formLocked}>
           {busy ? t('importing') : t('importAction')}
         </button>
       </form>

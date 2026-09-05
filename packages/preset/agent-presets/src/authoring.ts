@@ -91,9 +91,17 @@ async function occupied(path: string): Promise<boolean> {
  */
 async function tightenModes(dir: string): Promise<void> {
   await chmod(dir, 0o700)
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const target = join(dir, entry.name)
-    if (entry.isDirectory()) {
+  // Plain names + `stat`: packaged Node can return Dirent-shaped objects
+  // without callable `isDirectory` when `withFileTypes` is requested.
+  for (const name of await readdir(dir)) {
+    const target = join(dir, name)
+    let directory = false
+    try {
+      directory = (await stat(target)).isDirectory()
+    } catch {
+      continue
+    }
+    if (directory) {
       await tightenModes(target)
     } else {
       /* v8 ignore next -- Windows exposes no POSIX owner-execute bit; the POSIX lane covers both file modes. */

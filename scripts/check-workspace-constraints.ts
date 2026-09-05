@@ -52,8 +52,13 @@ const publishedRepositoryUrl = 'git+https://github.com/deepseek-ai/deepseek-harn
 const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for private experimental packages. */
 const experimentalPackageNamePrefix = '@deepseek-ai/dsh-experimental-'
+/**
+ * Private product packaging apps under `apps/` that share the dsh version
+ * line but are not npm release members (Electron installer shell).
+ */
+const privateProductAppDirectory = /^apps\/desktop$/
 /** Directories whose packages this repository publishes: one release member each. */
-const releaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/[^/]+|vendor\/[^/]+)$/
+const releaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop$)[^/]+|vendor\/[^/]+)$/
 const localArtifactDirs = new Set(['node_modules'])
 const appPackageFiles: Readonly<Record<string, readonly string[]>> = {
   '@deepseek-ai/dsh': ['lib/*.js'],
@@ -288,6 +293,16 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
       || manifest.repository.directory !== expectedDirectory) {
       errors.push(`${label}: published Landlock package repository must use ${repositoryUrl} with directory ${expectedDirectory} for trusted publishing`)
     }
+  } else if (privateProductAppDirectory.test(dir)) {
+    if (manifest.private !== true) {
+      errors.push(`${label}: private product app must set "private": true`)
+    }
+    if (manifest.publishConfig !== undefined) {
+      errors.push(`${label}: private product app must omit publishConfig`)
+    }
+    if (manifest.version !== repositoryVersion) {
+      errors.push(`${label}: package.json version must match root version ${repositoryVersion ?? '(missing)'}`)
+    }
   } else if (releaseMemberDirectory.test(dir)) {
     // Release members state that they are publishable: npm refuses a private
     // package, and the repository field is how a consumer finds the source of
@@ -327,7 +342,11 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     }
   }
 
-  if (dir.startsWith('apps/') && manifest.name?.startsWith('@deepseek-ai/')) {
+  if (
+    dir.startsWith('apps/')
+    && !privateProductAppDirectory.test(dir)
+    && manifest.name?.startsWith('@deepseek-ai/')
+  ) {
     const expectedFiles = appPackageFiles[manifest.name]
     if (expectedFiles === undefined) {
       errors.push(`${label}: app package has no publication files policy`)

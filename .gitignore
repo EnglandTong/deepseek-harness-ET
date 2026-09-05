@@ -29,6 +29,9 @@ mise.toml
 dist-exe/
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-*
 python/sdk-runtime/src/deepseek_harness_runtime/runtime/node/
+python/sdk-runtime/src/deepseek_harness_runtime/runtime/*.exe
+python/sdk-runtime/**/package.json.bak
+python/sdk-runtime/**/package.json.verify-probe.json
 python/**/__pycache__/
 python/**/.pytest_cache/
 packages/**/__pycache__/

@@ -273,6 +273,34 @@ async function isFile(path: string): Promise<boolean> {
 }
 
 /**
+ * List child names under a preset root. Prefer plain `readdir` names + `stat`
+ * over `withFileTypes` Dirent methods: SEA / packaged Node runtimes have been
+ * observed to return Dirent-shaped objects whose `isDirectory` is not callable.
+ * @param dir - absolute directory path.
+ * @returns child names, or `null` when the directory is absent.
+ */
+async function listChildNames(dir: string): Promise<string[] | null> {
+  try {
+    return await readdir(dir)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw new Error(`agent-presets: cannot read preset root ${dir}: ${String(error)}`, { cause: error })
+  }
+}
+
+/**
+ * @param path - absolute path of a child entry.
+ * @returns whether the path is an existing directory.
+ */
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
  * Scan one root for preset directories.
  *
  * An absent root yields no presets rather than throwing: the user root does
@@ -291,17 +319,13 @@ async function isFile(path: string): Promise<boolean> {
  */
 export async function scanRoot(root: PresetRoot, harnessBase: string): Promise<AgentPreset[]> {
   const dir = resolve(expandHomePath(root.path))
-  let children
-  try {
-    children = await readdir(dir, { withFileTypes: true })
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-    throw new Error(`agent-presets: cannot read preset root ${dir}: ${String(error)}`, { cause: error })
-  }
+  const children = await listChildNames(dir)
+  if (children === null) return []
   const found: AgentPreset[] = []
-  for (const child of children) {
-    if (!child.isDirectory() || !PRESET_ID.test(child.name)) continue
-    const directory = join(dir, child.name)
+  for (const name of children) {
+    if (!PRESET_ID.test(name)) continue
+    const directory = join(dir, name)
+    if (!(await isDirectory(directory))) continue
     const path = join(directory, COMPOSITION_FILE)
     const broken = await isFile(path)
       ? await compositionProblem(path, harnessBase)
@@ -310,7 +334,7 @@ export async function scanRoot(root: PresetRoot, harnessBase: string): Promise<A
     // still mounts, it just shows its id.
     const metadata = await readPresetMetadata(directory)
     found.push({
-      id: child.name, trust: root.trust, path, ...metadata,
+      id: name, trust: root.trust, path, ...metadata,
       ...broken === undefined ? {} : { broken },
     })
   }

@@ -272,6 +272,54 @@ describe('client bundle activation', () => {
     },
   )
 
+  it('follows dsh.moduleFallback ./client to the real browser bundle when the Loader lands on a SEA proxy', () => {
+    const packageName = '@fixture/module-fallback-proxy'
+    const realClientPath = writePackage(packageName)
+    mkdirSync(dirname(realClientPath), { recursive: true })
+    writeFileSync(realClientPath, 'module.exports = { from: "real" }\n')
+    const realHostPath = join(dirname(realClientPath), 'index.js')
+    writeFileSync(realHostPath, 'export default {}\n')
+
+    const proxyRoot = join(root!, 'proxy-modules', ...packageName.split('/'))
+    mkdirSync(proxyRoot, { recursive: true })
+    writeFileSync(join(proxyRoot, 'package.json'), JSON.stringify({
+      name: packageName,
+      private: true,
+      type: 'module',
+      exports: {
+        '.': './entry-0.js',
+        './client': './entry-1.js',
+      },
+      dsh: {
+        moduleFallback: {
+          targets: {
+            '.': pathToFileURL(realHostPath).href,
+            './client': pathToFileURL(realClientPath).href,
+          },
+        },
+      },
+    }))
+    const proxyHostPath = join(proxyRoot, 'entry-0.js')
+    writeFileSync(
+      proxyHostPath,
+      `export * from ${JSON.stringify(pathToFileURL(realHostPath).href)}\n`,
+    )
+    writeFileSync(
+      join(proxyRoot, 'entry-1.js'),
+      `export * from ${JSON.stringify(pathToFileURL(realClientPath).href)}\n`,
+    )
+
+    const entryBaseUrl = pathToFileURL(join(root!, 'overlay')).href + '/'
+    const resolveSync = () => ({ format: 'module' as const, url: pathToFileURL(proxyHostPath).href })
+    const { service } = constructWithRoute([packageName], {
+      entryBaseUrl,
+      internal: { version: 'v2', resolveSync } as unknown as NonNullable<Context['loader']['internal']>,
+    })
+
+    expect(service.clientPath(packageName)).toBe(realClientPath)
+    expect(service.graph().entries.map(entry => entry.id)).toEqual([packageName])
+  })
+
   it('derives the browser module id from a file entry owning manifest', () => {
     const packageName = '@fixture/file-entry'
     const clientPath = writePackage(packageName)

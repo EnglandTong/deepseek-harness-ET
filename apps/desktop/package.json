@@ -1,0 +1,78 @@
+{
+  "name": "@deepseek-ai/dsh-desktop-web",
+  "version": "0.1.2-alpha.4",
+  "private": true,
+  "description": "Thin Electron window that starts dsh web and shows the official Web UI.",
+  "author": "EnglandTong",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "sync-runtime": "node scripts/sync-bundled-runtime.js",
+    "sync-tools": "node scripts/sync-host-tools.js",
+    "sync-pack": "node scripts/sync-bundled-runtime.js && node scripts/sync-host-tools.js",
+    "dist:installer": "node scripts/sync-bundled-runtime.js && node scripts/sync-host-tools.js && node scripts/pack-nsis.js",
+    "dist:portable": "node scripts/sync-bundled-runtime.js && node scripts/sync-host-tools.js && electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ai.deepseek.dsh-desktop",
+    "productName": "DSH Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "sidecar.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/runtime",
+        "to": "runtime"
+      },
+      {
+        "from": "resources/tools",
+        "to": "tools"
+      },
+      {
+        "from": "resources/bootstrap",
+        "to": "bootstrap"
+      },
+      {
+        "from": "resources/sidecar",
+        "to": "sidecar"
+      },
+      {
+        "from": "resources/THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      }
+    ],
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "removePackageScripts": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DSH Desktop",
+      "artifactName": "DSH-Desktop-Setup-${version}.exe",
+      "include": "installer/helper-mode.nsh"
+    },
+    "portable": {
+      "artifactName": "DSH-Desktop-Portable-${version}.exe"
+    }
+  }
+}

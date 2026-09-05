@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> **Fork charter (fork-local, keep across upstream syncs):** this fork modifies **non-plugin parts only** — `apps/`, tooling, and host surfaces. Plugin capability work (Service Definition / Provider / Consumer seams) belongs in the standalone plugin repos: [governance-multi-agent-harness](https://github.com/EnglandTong/governance-multi-agent-harness) and [master-agent-assistance](https://github.com/EnglandTong/master-agent-assistance). Full charter: [FORK-CHARTER.md](FORK-CHARTER.md).
+> **Fork charter (fork-local, keep across upstream syncs):** desktop shell + web plugin-import, plus an explicit allowlist of small harness patches the product needs (today: workspace snapshot/multiedit, MCP `startupTimeoutMs`, desktop local-edge sidecar + input-optimize / helper purposes). Full plugin-capability products belong in [governance-multi-agent-harness](https://github.com/EnglandTong/governance-multi-agent-harness) and [master-agent-assistance](https://github.com/EnglandTong/master-agent-assistance). Full charter: [FORK-CHARTER.md](FORK-CHARTER.md).
 
 DeepSeek Harness is an all-plugin Cordis agent harness. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.
 

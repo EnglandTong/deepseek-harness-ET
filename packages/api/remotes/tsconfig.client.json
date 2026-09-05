@@ -46,6 +46,9 @@
       "path": "../../host/plugin-import"
     },
     {
+      "path": "../../host/input-optimize"
+    },
+    {
       "path": "../../interaction/commands"
     },
     {

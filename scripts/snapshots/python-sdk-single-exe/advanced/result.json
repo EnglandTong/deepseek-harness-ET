@@ -146,7 +146,12 @@
             "job_kill",
             "job_list",
             "job_output",
+            "multi_edit",
             "run_code",
+            "snapshot_create",
+            "snapshot_diff",
+            "snapshot_list",
+            "snapshot_restore",
             "subagent",
             "workflow"
           ]
@@ -587,8 +592,13 @@
             "job_kill",
             "job_list",
             "job_output",
+            "multi_edit",
             "run_code",
+            "snapshot_create",
+            "snapshot_diff",
             "snapshot_double",
+            "snapshot_list",
+            "snapshot_restore",
             "subagent",
             "workflow"
           ]
@@ -1471,7 +1481,12 @@
             "job_kill",
             "job_list",
             "job_output",
+            "multi_edit",
             "run_code",
+            "snapshot_create",
+            "snapshot_diff",
+            "snapshot_list",
+            "snapshot_restore",
             "subagent",
             "workflow"
           ]
@@ -1821,7 +1836,12 @@
                 "job_kill",
                 "job_list",
                 "job_output",
+                "multi_edit",
                 "run_code",
+                "snapshot_create",
+                "snapshot_diff",
+                "snapshot_list",
+                "snapshot_restore",
                 "subagent",
                 "workflow"
               ]
@@ -2406,8 +2426,13 @@
                 "job_kill",
                 "job_list",
                 "job_output",
+                "multi_edit",
                 "run_code",
+                "snapshot_create",
+                "snapshot_diff",
                 "snapshot_double",
+                "snapshot_list",
+                "snapshot_restore",
                 "subagent",
                 "workflow"
               ]
@@ -3150,8 +3175,13 @@
                 "job_kill",
                 "job_list",
                 "job_output",
+                "multi_edit",
                 "run_code",
+                "snapshot_create",
+                "snapshot_diff",
                 "snapshot_double",
+                "snapshot_list",
+                "snapshot_restore",
                 "subagent",
                 "workflow"
               ]
@@ -3927,8 +3957,13 @@
                 "job_kill",
                 "job_list",
                 "job_output",
+                "multi_edit",
                 "run_code",
+                "snapshot_create",
+                "snapshot_diff",
                 "snapshot_double",
+                "snapshot_list",
+                "snapshot_restore",
                 "subagent",
                 "workflow"
               ]
@@ -4567,7 +4602,12 @@
                 "job_kill",
                 "job_list",
                 "job_output",
+                "multi_edit",
                 "run_code",
+                "snapshot_create",
+                "snapshot_diff",
+                "snapshot_list",
+                "snapshot_restore",
                 "subagent",
                 "workflow"
               ]

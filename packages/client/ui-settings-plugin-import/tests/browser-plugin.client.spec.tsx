@@ -29,8 +29,10 @@ async function bench() {
   new RemoteService(ctx)
   const listBundles = vi.fn<() => Promise<typeof EMPTY>>().mockResolvedValue({ ok: true, value: EMPTY } as never)
   const importSpec = vi.fn<PluginImportSettingsTabInjected['importSpec']>()
+  const pick = vi.fn<() => Promise<{ ok: true; value: string | null }>>().mockResolvedValue({ ok: true, value: null })
   ctx.provide('remote.pluginImport', { listBundles, import: importSpec })
-  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, listBundles, importSpec }
+  ctx.provide('remote.directoryPicker', { pick })
+  return { ctx, slots: ctx.get('slots') as SlotRegistry, locale, listBundles, importSpec, pick }
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -46,7 +48,7 @@ describe('ui-settings-plugin-import browser plugin', () => {
   })
 
   it('declares only the services used by the Settings Remote contribution', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginImport'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.pluginImport', 'remote.directoryPicker'])
   })
 
   it('registers a localized tab without reading the Remote eagerly', async () => {
@@ -71,6 +73,11 @@ describe('ui-settings-plugin-import browser plugin', () => {
       ok: false, error: { code: 'REMOTE_ERROR', message: 'aborted' },
     } as never)
     await expect(injected.importSpec('@fixture/x')).rejects.toThrow('pluginImport.import failed: REMOTE_ERROR: aborted')
+
+    await expect(injected.browseLocalPath()).resolves.toBeNull()
+    expect(b.pick).toHaveBeenCalledOnce()
+    b.pick.mockResolvedValueOnce({ ok: false, error: { code: 'REMOTE_ERROR', message: 'denied' } } as never)
+    await expect(injected.browseLocalPath()).rejects.toThrow('directoryPicker.pick failed: REMOTE_ERROR: denied')
     await b.ctx.fiber.dispose()
   })
 
