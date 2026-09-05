@@ -21,7 +21,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const NS = 'settings.pluginImport'
 
 /** Services required by the Settings registration and generated Remote face. */
-export const inject = ['slots', 'locale', 'remote', 'remote.pluginImport']
+export const inject = ['slots', 'locale', 'remote', 'remote.pluginImport', 'remote.directoryPicker']
 
 /** Contribute the import tab to the Plugins settings section. */
 export function apply(ctx: ClientContext): void {
@@ -42,7 +42,14 @@ export function apply(ctx: ClientContext): void {
     }
     return result.value
   }
-  const injected = (): PluginImportSettingsTabInjected => ({ listBundles, importSpec })
+  const browseLocalPath: PluginImportSettingsTabInjected['browseLocalPath'] = async () => {
+    const result = await ctx.remote.directoryPicker.pick()
+    if (!result.ok) {
+      throw new Error(`directoryPicker.pick failed: ${result.error.code}: ${result.error.message}`)
+    }
+    return result.value
+  }
+  const injected = (): PluginImportSettingsTabInjected => ({ listBundles, importSpec, browseLocalPath })
 
   ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
     name: 'settings.plugins.tab',

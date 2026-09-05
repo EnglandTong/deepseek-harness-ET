@@ -19,16 +19,22 @@ const t = ((key: PluginImportLocaleKey, params?: Record<string, string>): string
 
 type ListBundles = PluginImportSettingsTabInjected['listBundles']
 type ImportSpec = PluginImportSettingsTabInjected['importSpec']
+type BrowseLocalPath = PluginImportSettingsTabInjected['browseLocalPath']
 
 function props(
   listBundles: ListBundles,
   importSpec: ImportSpec = vi.fn(),
+  browseLocalPath: BrowseLocalPath = vi.fn(async () => null),
 ): PluginImportSettingsTabProps {
-  return { t, listBundles, importSpec } as PluginImportSettingsTabProps
+  return { t, listBundles, importSpec, browseLocalPath } as PluginImportSettingsTabProps
 }
 
 const snapshotWith = (bundles: BundleListSnapshot['bundles']): BundleListSnapshot =>
   ({ profileName: 'web', bundles })
+
+function specInput(): HTMLInputElement {
+  return screen.getByRole('textbox', { name: new RegExp(en.specLabel) }) as HTMLInputElement
+}
 
 /** Render and wait until the layer list left its initial loading state. */
 async function renderReady(bundles: BundleListSnapshot['bundles'] = []): Promise<void> {
@@ -54,7 +60,9 @@ describe('PluginImportTab', () => {
     await renderReady()
     expect(screen.getByText(en.profileHint.replace('{name}', 'web'))).toBeTruthy()
     expect(screen.getByText(en.emptyLayers)).toBeTruthy()
-    expect(screen.getByLabelText(en.specLabel)).toBeTruthy()
+    expect(specInput()).toBeTruthy()
+    expect(screen.getByText(en.specHint)).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.browseAction })).toBeTruthy()
   })
 
   it('tags each layer with its resolution state', async () => {
@@ -99,7 +107,7 @@ describe('PluginImportTab', () => {
     )
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: ' @fixture/kit ' } })
+    fireEvent.change(specInput(), { target: { value: ' @fixture/kit ' } })
     submit()
     expect(await screen.findByText(en.addedTitle)).toBeTruthy()
     expect(screen.getByText(en.appliedTag)).toBeTruthy()
@@ -116,7 +124,7 @@ describe('PluginImportTab', () => {
     )
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: '@fixture/kit' } })
+    fireEvent.change(specInput(), { target: { value: '@fixture/kit' } })
     submit()
     expect(await screen.findByText(en.applyFailedTag)).toBeTruthy()
     expect(screen.getByText(`${en.applyErrorLabel}: the tree refused the re-apply`)).toBeTruthy()
@@ -131,7 +139,7 @@ describe('PluginImportTab', () => {
     )
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: '@fixture/kit' } })
+    fireEvent.change(specInput(), { target: { value: '@fixture/kit' } })
     submit()
     expect(await screen.findByText(en.applyFailedTag)).toBeTruthy()
     expect(screen.queryByText(new RegExp(en.applyErrorLabel))).toBeNull()
@@ -144,7 +152,7 @@ describe('PluginImportTab', () => {
     const importSpec = vi.fn<ImportSpec>().mockResolvedValue(okReport({}))
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: '@fixture/plain' } })
+    fireEvent.change(specInput(), { target: { value: '@fixture/plain' } })
     submit()
     await screen.findByText(en.installedNoLayers)
     expect(screen.queryByText(en.addedTitle)).toBeNull()
@@ -162,7 +170,7 @@ describe('PluginImportTab', () => {
     })
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: '@fixture/broken' } })
+    fireEvent.change(specInput(), { target: { value: '@fixture/broken' } })
     submit()
     expect(await screen.findByText(en.installFailedTitle)).toBeTruthy()
     expect(screen.getByText('ERR_PNPM_404 not found')).toBeTruthy()
@@ -174,7 +182,7 @@ describe('PluginImportTab', () => {
     const importSpec = vi.fn<ImportSpec>().mockRejectedValue(new Error('connection lost'))
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: '@fixture/kit' } })
+    fireEvent.change(specInput(), { target: { value: '@fixture/kit' } })
     submit()
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('connection lost'))
     expect(screen.getByRole('button', { name: en.importAction })).toBeTruthy()
@@ -189,14 +197,27 @@ describe('PluginImportTab', () => {
     }))
     render(<PluginImportTab {...props(listBundles, importSpec)} />)
     await screen.findByText(en.emptyLayers)
-    fireEvent.change(screen.getByLabelText(en.specLabel), { target: { value: '@fixture/kit' } })
+    fireEvent.change(specInput(), { target: { value: '@fixture/kit' } })
     submit()
     expect(screen.getByRole('button', { name: en.importing })).toBeTruthy()
-    expect((screen.getByLabelText(en.specLabel) as HTMLInputElement).disabled).toBe(true)
+    expect(specInput().disabled).toBe(true)
     await act(async () => {
       release(okReport({}))
     })
     await screen.findByText(en.installedNoLayers)
     expect(screen.getByRole('button', { name: en.importAction })).toBeTruthy()
+  })
+
+  it('fills the path from Browse and leaves cancel as a no-op', async () => {
+    const browseLocalPath = vi.fn<BrowseLocalPath>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce('/tmp/local-bundle')
+    render(<PluginImportTab {...props(async () => snapshotWith([]), vi.fn(), browseLocalPath)} />)
+    await screen.findByText(en.emptyLayers)
+    fireEvent.click(screen.getByRole('button', { name: en.browseAction }))
+    await waitFor(() => expect(browseLocalPath).toHaveBeenCalledOnce())
+    expect(specInput().value).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: en.browseAction }))
+    await waitFor(() => expect(specInput().value).toBe('/tmp/local-bundle'))
   })
 })

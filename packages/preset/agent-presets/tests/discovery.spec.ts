@@ -107,6 +107,17 @@ describe('preset discovery', () => {
     expect(found.map(preset => preset.id)).toEqual(['usable'])
   })
 
+  it('skips non-directory children even when the name looks like a preset id', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-presets-file-'))
+    await writeFile(join(root, 'looks-like-id'), 'not a directory\n')
+    await mkdir(join(root, 'usable'))
+    await writeFile(join(root, 'usable', COMPOSITION_FILE), '[]\n')
+
+    const found = await scanRoot({ path: root, trust: 'user' }, HARNESS)
+
+    expect(found.map(preset => preset.id)).toEqual(['usable'])
+  })
+
   it('records the root trust on every preset it discovers', async () => {
     const found = await scanRoot(USER, HARNESS)
 

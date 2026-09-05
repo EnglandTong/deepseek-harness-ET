@@ -12,8 +12,9 @@
 
 .form {
   display: flex;
-  align-items: flex-end;
-  gap: var(--dsw-space-2);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--dsw-space-3);
 }
 
 .field {
@@ -24,33 +25,78 @@
   min-width: 0;
 }
 
-.field span {
+.field > span:first-child {
+  font-size: var(--dsw-font-size-sm);
+  font-weight: 600;
+  color: var(--dsw-text-primary);
+}
+
+.fieldHint {
   font-size: var(--dsw-font-size-sm);
   color: var(--dsw-text-secondary);
 }
 
+.specRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--dsw-space-2);
+}
+
 .field input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
-  padding: var(--dsw-space-1) var(--dsw-space-2);
+  min-height: 2.25rem;
+  padding: var(--dsw-space-2) var(--dsw-space-3);
   border: 1px solid var(--dsw-border-default);
   border-radius: var(--dsw-radius-sm);
   background: var(--dsw-surface-default);
   color: var(--dsw-text-primary);
+  font-size: var(--dsw-font-size-sm);
 }
 
-.action {
-  padding: var(--dsw-space-1) var(--dsw-space-3);
+.field input:focus {
+  outline: 2px solid var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+  outline-offset: 1px;
+}
+
+.browse {
+  flex-shrink: 0;
+  min-height: 2.25rem;
+  padding: 0 var(--dsw-space-3);
   border: 1px solid var(--dsw-border-default);
   border-radius: var(--dsw-radius-sm);
   background: var(--dsw-surface-raised);
   color: var(--dsw-text-primary);
+  font-size: var(--dsw-font-size-sm);
   cursor: pointer;
 }
 
-.action:disabled {
+.browse:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.browse:disabled,
+.importAction:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.importAction {
+  align-self: flex-start;
+  min-height: 2.25rem;
+  padding: 0 var(--dsw-space-4);
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-button-primary-fill);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-size: var(--dsw-font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.importAction:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover);
 }
 
 .alert {
