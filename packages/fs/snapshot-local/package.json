@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-snapshot-local",
-  "description": "Local workspace-snapshot provider for ctx.snapshots — lazy capture through fs write/edit-intent waterfalls, content-addressed blob storage under dshHome, restore through the fs write path with approval gating",
-  "version": "0.1.0-rc.5",
+  "description": "Local workspace-snapshot provider for ctx.snapshots \u2014 lazy capture through fs write/edit-intent waterfalls, content-addressed blob storage under dshHome, restore through the fs write path with approval gating",
+  "version": "0.1.2-alpha.4",
   "publishConfig": {
     "access": "public"
   },

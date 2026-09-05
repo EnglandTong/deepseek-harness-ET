@@ -70,8 +70,12 @@ details: [2026-09-05-desktop-local-edge-input-optimize.md](./2026-09-05-desktop-
 Contributors run `cd apps/desktop && pnpm start` after a normal repo build and
 `DEEPSEEK_API_KEY`, or `pnpm run dist:installer` after building
 `deepseek-harness-sdk-runtime-win-x64.exe`. Root `pnpm-workspace.yaml` allows
-Electron's postinstall (`allowBuilds.electron: true`). Import Plugin stays on
-the Web settings path via `@deepseek-ai/dsh-host-plugin-import`. The earlier
-Studio migration note is consolidated here and deleted; reintroducing a
-Studio-style host would need a new decision. `resources/runtime/`,
-`resources/tools/`, and `dist/` are gitignored build output.
+Electron's postinstall (`allowBuilds.electron: true`). The desktop package stays
+`private: true`, shares the dsh family version, and is excluded from the npm
+release member set (`apps/!(desktop)` / workspace-constraint private-product-app
+rules) because it ships as an Electron installer rather than a published tarball.
+Import Plugin stays on the Web settings path via
+`@deepseek-ai/dsh-host-plugin-import`. The earlier Studio migration note is
+consolidated here and deleted; reintroducing a Studio-style host would need a
+new decision. `resources/runtime/`, `resources/tools/`, and `dist/` are
+gitignored build output.

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-multiedit",
-  "description": "Multi-file atomic edit tool consumer — multi_edit applies literal edits across files with automatic snapshot rollback on failure",
-  "version": "0.1.0-rc.5",
+  "description": "Multi-file atomic edit tool consumer \u2014 multi_edit applies literal edits across files with automatic snapshot rollback on failure",
+  "version": "0.1.2-alpha.4",
   "publishConfig": {
     "access": "public"
   },

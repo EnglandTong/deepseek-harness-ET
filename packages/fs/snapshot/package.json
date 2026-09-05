@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-snapshot",
-  "description": "Abstract workspace-snapshot capability seam (ctx.snapshots) for the DeepSeek Harness — snapshot identity and manifest vocabulary, the SnapshotService (create/list/restore/diff), and the snapshot/create + snapshot/restore session events",
-  "version": "0.1.0-rc.5",
+  "description": "Abstract workspace-snapshot capability seam (ctx.snapshots) for the DeepSeek Harness \u2014 snapshot identity and manifest vocabulary, the SnapshotService (create/list/restore/diff), and the snapshot/create + snapshot/restore session events",
+  "version": "0.1.2-alpha.4",
   "publishConfig": {
     "access": "public"
   },

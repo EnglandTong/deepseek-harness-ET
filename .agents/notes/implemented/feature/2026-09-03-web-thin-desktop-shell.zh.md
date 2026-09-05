@@ -55,7 +55,10 @@ checkout 下的 `pnpm start` 在未暂存 runtime 时仍回退到系统 Node +
 `cd apps/desktop && pnpm start`，或在构建
 `deepseek-harness-sdk-runtime-win-x64.exe` 后执行 `pnpm run dist:installer`。
 根目录 `pnpm-workspace.yaml` 允许 Electron 的 postinstall
-（`allowBuilds.electron: true`）。Import Plugin 仍走 Web 设置与
+（`allowBuilds.electron: true`）。desktop 包保持 `private: true`，与 dsh 家族
+共用版本号，并从 npm 发布成员集合中排除（`apps/!(desktop)` /
+workspace-constraint 的私有产品应用规则），因为它以 Electron 安装包而非已发布
+tarball 交付。Import Plugin 仍走 Web 设置与
 `@deepseek-ai/dsh-host-plugin-import`。此前的 Studio 迁移笔记已并入本文并删除；
 若再引入 Studio 式宿主需新决策。`resources/runtime/`、`resources/tools/` 与
 `dist/` 为 gitignore 的构建产物。

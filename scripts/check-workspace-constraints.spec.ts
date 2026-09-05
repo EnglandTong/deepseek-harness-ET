@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   checkExperimentalDependencyIsolation,
   checkExperimentalManifest,
+  checkWorkspaceManifest,
   expectedDshPackageFiles,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
@@ -11,6 +12,15 @@ import {
 const experimental: WorkspaceManifest = {
   dir: 'packages/experimental/prototype',
   manifest: { name: '@deepseek-ai/dsh-experimental-prototype', private: true },
+}
+
+const desktop: WorkspaceManifest = {
+  dir: 'apps/desktop',
+  manifest: {
+    name: '@deepseek-ai/dsh-desktop-web',
+    private: true,
+    version: '0.1.2-alpha.4',
+  },
 }
 
 describe('experimental workspace constraints', () => {
@@ -85,6 +95,25 @@ describe('package payload constraints', () => {
       'lib/index.js',
       'cordis.patch.yml',
       'lib/types/**/*.d.ts',
+    ])
+  })
+})
+
+describe('private product app constraints', () => {
+  it('keeps the desktop packaging app private and version-aligned without publish metadata', () => {
+    expect(checkWorkspaceManifest(desktop)).toEqual([])
+    expect(checkWorkspaceManifest({
+      ...desktop,
+      manifest: {
+        ...desktop.manifest,
+        private: false,
+        publishConfig: { access: 'public' },
+        version: '0.0.1',
+      },
+    })).toEqual([
+      'apps/desktop/package.json: @deepseek-ai/dsh-desktop-web: private product app must set "private": true',
+      'apps/desktop/package.json: @deepseek-ai/dsh-desktop-web: private product app must omit publishConfig',
+      'apps/desktop/package.json: @deepseek-ai/dsh-desktop-web: package.json version must match root version 0.1.2-alpha.4',
     ])
   })
 })

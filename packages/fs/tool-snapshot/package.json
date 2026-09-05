@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-snapshot",
-  "description": "Workspace-snapshot tool consumer — snapshot_create / snapshot_list / snapshot_restore / snapshot_diff over ctx.snapshots with multi-file diff-card presentation",
-  "version": "0.1.0-rc.5",
+  "description": "Workspace-snapshot tool consumer \u2014 snapshot_create / snapshot_list / snapshot_restore / snapshot_diff over ctx.snapshots with multi-file diff-card presentation",
+  "version": "0.1.2-alpha.4",
   "publishConfig": {
     "access": "public"
   },
